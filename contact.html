@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" /><meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Contact Us | Youth Sports Pathway</title>
+  <link rel="stylesheet" href="css/style.css" />
+  <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;600;700;800;900&family=Barlow:wght@400;500;600;700&display=swap" rel="stylesheet" />
+</head>
+<body>
+  <header class="site-header" id="site-header">
+    <nav class="nav container">
+      <a href="index.html" class="nav-logo"><img src="assets/ysp-logo.png" alt="YSP" class="logo-img" /></a>
+      <button class="nav-toggle" id="nav-toggle"><span></span><span></span><span></span></button>
+      <ul class="nav-links" id="nav-links">
+        <li><a href="index.html" class="nav-link">Home</a></li>
+        <li><a href="about.html" class="nav-link">About</a></li>
+        <li class="nav-dropdown"><a href="basketball.html" class="nav-link">Programmes ▾</a>
+          <ul class="dropdown-menu">
+            <li><a href="basketball.html">Basketball Sessions</a></li>
+            <li><a href="schools.html">School Programmes</a></li>
+            <li><a href="holiday-camps.html">Holiday Camps</a></li>
+            <li><a href="ysp-games.html">YSP Games</a></li>
+            <li><a href="pathways.html">Pathways</a></li>
+          </ul>
+        </li>
+        <li><a href="timetable.html" class="nav-link">Timetable</a></li>
+        <li><a href="team.html" class="nav-link">Team</a></li>
+        <li><a href="success-stories.html" class="nav-link">Success Stories</a></li>
+        <li><a href="partners.html" class="nav-link">Partners</a></li>
+        <li><a href="contact.html" class="nav-link btn-nav active">Contact Us</a></li>
+      </ul>
+    </nav>
+  </header>
+
+  <section class="page-hero">
+    <div class="container">
+      <span class="eyebrow">Get In Touch</span>
+      <h1>Contact Us</h1>
+      <p>Whether you're a parent looking to book, a school wanting a programme, or an organisation interested in partnering — we'd love to hear from you.</p>
+    </div>
+  </section>
+
+  <section class="section">
+    <div class="container contact-grid">
+      <div class="contact-info">
+        <span class="eyebrow">Reach Us</span>
+        <h2>We're Here to Help</h2>
+        <p>We aim to respond to all enquiries within 24 hours during the working week.</p>
+        <div class="contact-details">
+          <div class="contact-detail">
+            <div class="contact-detail-icon">📧</div>
+            <div>
+              <strong>Email</strong>
+              <p><a href="mailto:info@youthsportspathway.co.uk" style="color:var(--red);">info@youthsportspathway.co.uk</a></p>
+            </div>
+          </div>
+          <div class="contact-detail">
+            <div class="contact-detail-icon">💬</div>
+            <div>
+              <strong>WhatsApp</strong>
+              <p>Message us directly for quick replies — join our community group for updates.</p>
+              <a href="community.html" style="color:var(--red);font-weight:600;font-size:0.9rem;">Join WhatsApp Community →</a>
+            </div>
+          </div>
+          <div class="contact-detail">
+            <div class="contact-detail-icon">📍</div>
+            <div>
+              <strong>Based In</strong>
+              <p>Sheffield, South Yorkshire</p>
+              <p style="font-size:0.85rem;opacity:0.7;">Sessions delivered across multiple Sheffield venues.</p>
+            </div>
+          </div>
+          <div class="contact-detail">
+            <div class="contact-detail-icon">📱</div>
+            <div>
+              <strong>Social Media</strong>
+              <div style="display:flex;gap:10px;margin-top:8px;">
+                <a href="#" class="social-link" style="background:var(--grey-lt);color:var(--dark);">IG</a>
+                <a href="#" class="social-link" style="background:var(--grey-lt);color:var(--dark);">TK</a>
+                <a href="#" class="social-link" style="background:var(--grey-lt);color:var(--dark);">FB</a>
+                <a href="#" class="social-link" style="background:var(--grey-lt);color:var(--dark);">YT</a>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div style="background:var(--grey-lt);padding:24px;border-radius:8px;border-left:4px solid var(--red);">
+          <strong style="font-family:var(--font-head);text-transform:uppercase;letter-spacing:1px;font-size:0.85rem;">Response Times</strong>
+          <p style="margin-top:8px;font-size:0.85rem;">Mon–Fri: Within 24 hours<br>Weekends: Next working day</p>
+        </div>
+      </div>
+
+      <div class="contact-form">
+        <span class="eyebrow">Send a Message</span>
+        <h3 style="margin-bottom:28px;">Get In Touch</h3>
+        <form id="contact-form">
+          <div class="form-row">
+            <div class="form-group">
+              <label for="first-name">First Name *</label>
+              <input type="text" id="first-name" placeholder="First name" required />
+            </div>
+            <div class="form-group">
+              <label for="last-name">Last Name *</label>
+              <input type="text" id="last-name" placeholder="Last name" required />
+            </div>
+          </div>
+          <div class="form-group">
+            <label for="email">Email Address *</label>
+            <input type="email" id="email" placeholder="your@email.com" required />
+          </div>
+          <div class="form-group">
+            <label for="phone">Phone Number</label>
+            <input type="tel" id="phone" placeholder="07xxx xxxxxx" />
+          </div>
+          <div class="form-group">
+            <label for="enquiry-type">Enquiry Type *</label>
+            <select id="enquiry-type" required>
+              <option value="">Select enquiry type</option>
+              <option>Book a Basketball Session</option>
+              <option>School Programme Enquiry</option>
+              <option>Holiday Camp Booking</option>
+              <option>YSP Games Registration</option>
+              <option>Partnership / Sponsorship</option>
+              <option>Coaching / Employment</option>
+              <option>General Enquiry</option>
+              <option>Other</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label for="message">Message *</label>
+            <textarea id="message" placeholder="Tell us how we can help…" required></textarea>
+          </div>
+          <div class="form-group">
+            <label style="display:flex;align-items:flex-start;gap:10px;cursor:pointer;font-size:0.85rem;letter-spacing:0;text-transform:none;">
+              <input type="checkbox" required style="width:auto;margin-top:2px;" />
+              I agree to YSP's <a href="policies.html" style="color:var(--red);">Privacy Policy</a> and consent to being contacted regarding my enquiry.
+            </label>
+          </div>
+          <button type="submit" class="btn btn-primary form-submit">Send Message</button>
+        </form>
+      </div>
+    </div>
+  </section>
+
+  <section class="section bg-dark">
+    <div class="container text-center">
+      <span class="eyebrow">Quick Actions</span>
+      <h2>What Would You Like to Do?</h2>
+      <div style="display:flex;gap:16px;justify-content:center;flex-wrap:wrap;margin-top:40px;">
+        <a href="basketball.html" class="btn btn-primary">Book a Session</a>
+        <a href="timetable.html" class="btn btn-outline">View Timetable</a>
+        <a href="community.html" class="btn btn-outline">Join WhatsApp</a>
+        <a href="schools.html" class="btn btn-outline">School Enquiry</a>
+      </div>
+    </div>
+  </section>
+
+  <footer class="site-footer">
+    <div class="container footer-grid">
+      <div class="footer-brand"><img src="assets/ysp-logo.png" alt="YSP" class="footer-logo" /><p>Developing Sheffield's next generation of athletes, leaders and coaches.</p><div class="social-links"><a href="#" class="social-link">IG</a><a href="#" class="social-link">TK</a><a href="#" class="social-link">FB</a><a href="#" class="social-link">YT</a></div></div>
+      <div class="footer-col"><h4>Programmes</h4><ul><li><a href="basketball.html">Basketball Sessions</a></li><li><a href="schools.html">School Programmes</a></li><li><a href="holiday-camps.html">Holiday Camps</a></li><li><a href="ysp-games.html">YSP Games</a></li><li><a href="pathways.html">Pathways</a></li></ul></div>
+      <div class="footer-col"><h4>Company</h4><ul><li><a href="about.html">About Us</a></li><li><a href="team.html">Team</a></li><li><a href="success-stories.html">Success Stories</a></li><li><a href="partners.html">Partners</a></li><li><a href="community.html">Community</a></li></ul></div>
+      <div class="footer-col"><h4>Info</h4><ul><li><a href="timetable.html">Timetable</a></li><li><a href="policies.html">Policies</a></li><li><a href="contact.html">Contact</a></li></ul></div>
+    </div>
+    <div class="footer-bottom container"><p>© 2025 Youth Sports Pathway Ltd.</p><p><a href="policies.html">Privacy</a> · <a href="policies.html">Terms</a></p></div>
+  </footer>
+  <script src="js/main.js"></script>
+</body>
+</html>
