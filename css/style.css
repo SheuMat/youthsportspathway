@@ -318,7 +318,9 @@ p  { font-size: 1rem; color: inherit; opacity: 0.85; }
 }
 .stats-grid {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  grid-template-columns: repeat(3, 1fr);
+  max-width: 700px;
+  margin: 0 auto;
   gap: 0;
 }
 .stat-item {
