@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" /><meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Weekly Timetable | Youth Sports Pathway</title>
+  <title>Timetable &amp; Booking | Youth Sports Pathway</title>
   <link rel="stylesheet" href="css/style.css" />
   <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;600;700;800;900&family=Barlow:wght@400;500;600;700&display=swap" rel="stylesheet" />
 </head>
@@ -33,71 +33,91 @@
 
   <section class="page-hero">
     <div class="container">
-      <span class="eyebrow">Schedule</span>
-      <h1>Weekly Timetable</h1>
-      <p>Find a session that works for you. All sessions run weekly during term time.</p>
+      <span class="eyebrow">Book Your Place</span>
+      <h1>Timetable &amp; Booking</h1>
+      <p>Weekly basketball sessions every Monday and Friday, 5:00pm to 6:00pm. Choose a monthly plan and pay by Direct Debit.</p>
     </div>
   </section>
 
-  <section class="section">
+  <section class="section booking">
     <div class="container">
+      <div class="venue-box">
+        <strong class="venue-title">📍 Venue</strong>
+        <p><span id="venue-name">Ecclesfield School (EDU @ Ecclesfield School)</span><br /><span id="venue-address">Chapeltown Road, Chapeltown, Sheffield S35 9WD</span></p>
+        <a id="venue-link" href="https://bookings.edu-lettings.org/sheffield/edu-ecclesfield-school" target="_blank" rel="noopener">View venue details<span class="visually-hidden"> (opens in a new tab)</span></a>
+      </div>
+
       <div class="section-header">
-        <span class="eyebrow">Current Schedule</span>
-        <h2>Sessions This Week</h2>
+        <span class="eyebrow">Step 1</span>
+        <h2>Choose a Plan</h2>
+        <p>Every plan is a monthly Direct Debit. Each session has 25 places.</p>
       </div>
-      <div style="overflow-x:auto;">
-        <table class="timetable-table">
-          <thead>
-            <tr>
-              <th>Day</th>
-              <th>Time</th>
-              <th>Session</th>
-              <th>Age Group</th>
-              <th>Venue</th>
-              <th>Price</th>
-              <th>Book</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr>
-              <td><strong>Monday</strong></td>
-              <td>5:00pm – 6:00pm</td>
-              <td>Grassroots Development</td>
-              <td>All ages</td>
-              <td>Concord Sports Centre</td>
-              <td>—</td>
-              <td><a href="contact.html" class="btn btn-primary" style="padding:6px 16px;font-size:0.8rem;">Book</a></td>
-            </tr>
-            <tr>
-              <td><strong>Friday</strong></td>
-              <td>5:00pm – 6:00pm</td>
-              <td>Grassroots Development</td>
-              <td>All ages</td>
-              <td>Firth Park Academy</td>
-              <td>—</td>
-              <td><a href="contact.html" class="btn btn-primary" style="padding:6px 16px;font-size:0.8rem;">Book</a></td>
-            </tr>
+      <div id="plans" class="plan-grid" aria-label="Monthly plans" aria-describedby="plans-status">
+        <p class="booking-loading">Loading plans…</p>
+      </div>
+      <p id="plans-status" class="visually-hidden" aria-live="polite"></p>
 
-          </tbody>
-        </table>
+      <div class="section-header booking-step">
+        <span class="eyebrow">Session Dates</span>
+        <h2>When Sessions Run</h2>
       </div>
+      <div class="date-filter" role="group" aria-label="Show sessions on">
+        <button type="button" class="filter-btn" data-filter="both" aria-pressed="true">Both</button>
+        <button type="button" class="filter-btn" data-filter="mon" aria-pressed="false">Mondays</button>
+        <button type="button" class="filter-btn" data-filter="fri" aria-pressed="false">Fridays</button>
+      </div>
+      <div id="months" class="months"></div>
 
-      <div style="margin-top:32px;padding:24px;background:#fff8f8;border-left:4px solid var(--red);border-radius:4px;">
-        <strong style="font-family:var(--font-head);text-transform:uppercase;letter-spacing:1px;font-size:0.85rem;">📅 Holiday Periods</strong>
-        <p style="margin-top:8px;font-size:0.9rem;">Sessions run during term time and may not run during school holidays. Join our <a href="community.html" style="color:var(--red);font-weight:600;">WhatsApp community</a> for updates.</p>
-      </div>
-    </div>
-  </section>
+      <form id="booking-form" class="booking-form contact-form" novalidate>
+        <div class="section-header booking-step">
+          <span class="eyebrow">Step 2</span>
+          <h2>Your Details</h2>
+        </div>
 
-  <section class="section bg-dark">
-    <div class="container text-center">
-      <span class="eyebrow">Can't Find a Session?</span>
-      <h2>We're Always Growing</h2>
-      <p style="max-width:540px;margin:16px auto 40px;opacity:0.7;">New sessions are added regularly. Join our WhatsApp community to be first to know about new times and locations.</p>
-      <div class="cta-buttons">
-        <a href="community.html" class="btn btn-primary">Join WhatsApp Community</a>
-        <a href="contact.html" class="btn btn-outline">Contact Us</a>
-      </div>
+        <div id="error-summary" class="error-summary" role="alert" tabindex="-1" hidden>
+          <h3>Please check the form</h3>
+          <ul></ul>
+        </div>
+
+        <div id="plan-summary" class="plan-summary" aria-live="polite">No plan chosen yet. Choose a plan above.</div>
+
+        <fieldset class="form-group" id="paymentDay-group">
+          <legend>When would you like to pay each month? *</legend>
+          <div id="payment-days" class="radio-row"></div>
+          <p class="field-error" id="paymentDay-error"></p>
+        </fieldset>
+
+        <div class="form-row">
+          <div class="form-group"><label for="parentName">Parent or guardian name *</label><input id="parentName" name="parentName" autocomplete="name" required aria-describedby="parentName-error" /><p class="field-error" id="parentName-error"></p></div>
+          <div class="form-group"><label for="email">Email *</label><input id="email" name="email" type="email" autocomplete="email" required aria-describedby="email-error" /><p class="field-error" id="email-error"></p></div>
+        </div>
+        <div class="form-row">
+          <div class="form-group"><label for="phone">Phone *</label><input id="phone" name="phone" type="tel" autocomplete="tel" required aria-describedby="phone-error" /><p class="field-error" id="phone-error"></p></div>
+          <div class="form-group"><label for="childName">Child's full name *</label><input id="childName" name="childName" required aria-describedby="childName-error" /><p class="field-error" id="childName-error"></p></div>
+        </div>
+        <div class="form-row">
+          <div class="form-group"><label for="childDob">Child's date of birth *</label><input id="childDob" name="childDob" type="date" required aria-describedby="childDob-error" /><p class="field-error" id="childDob-error"></p></div>
+          <div class="form-group"><label for="emergencyName">Emergency contact name *</label><input id="emergencyName" name="emergencyName" required aria-describedby="emergencyName-error" /><p class="field-error" id="emergencyName-error"></p></div>
+        </div>
+        <div class="form-row">
+          <div class="form-group"><label for="emergencyPhone">Emergency contact number *</label><input id="emergencyPhone" name="emergencyPhone" type="tel" required aria-describedby="emergencyPhone-error" /><p class="field-error" id="emergencyPhone-error"></p></div>
+          <div class="form-group"><label for="medical">Medical conditions or allergies</label><textarea id="medical" name="medical" rows="3" aria-describedby="medical-hint"></textarea><p class="field-hint" id="medical-hint">Leave blank if none.</p></div>
+        </div>
+
+        <div class="form-group check-group">
+          <input type="checkbox" id="terms" name="terms" required aria-describedby="terms-error" />
+          <label for="terms">I agree to the <a href="policies.html" target="_blank" rel="noopener">terms and policies<span class="visually-hidden"> (opens in a new tab)</span></a> *</label>
+          <p class="field-error" id="terms-error"></p>
+        </div>
+        <div class="form-group check-group">
+          <input type="checkbox" id="photoConsent" name="photoConsent" />
+          <label for="photoConsent">I give consent for photos and videos of my child to be taken and used by YSP</label>
+        </div>
+
+        <p class="dd-note">You'll be taken to GoCardless to set up your Direct Debit securely. Payments are protected by the Direct Debit Guarantee. Your place is held for 45 minutes while you complete this.</p>
+        <button type="submit" class="btn btn-primary booking-submit" id="submit-btn">Continue to Direct Debit set-up</button>
+        <p id="form-status" class="form-status" aria-live="polite"></p>
+      </form>
     </div>
   </section>
 
@@ -111,5 +131,6 @@
     <div class="footer-bottom container"><p>© 2025 Youth Sports Pathway Ltd.</p><p><a href="policies.html">Privacy</a> · <a href="policies.html">Terms</a></p></div>
   </footer>
   <script src="js/main.js"></script>
+  <script src="js/booking.js"></script>
 </body>
 </html>

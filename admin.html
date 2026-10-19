@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" /><meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Bookings Admin | Youth Sports Pathway</title>
+  <meta name="robots" content="noindex, nofollow" />
+  <link rel="stylesheet" href="css/style.css" />
+  <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;600;700;800;900&family=Barlow:wght@400;500;600;700&display=swap" rel="stylesheet" />
+</head>
+<body>
+  <header class="site-header" id="site-header">
+    <nav class="nav container">
+      <a href="index.html" class="nav-logo"><img src="assets/ysp-logo.png" alt="YSP" class="logo-img" /></a>
+      <button class="nav-toggle" id="nav-toggle" aria-label="Toggle menu"><span></span><span></span><span></span></button>
+      <ul class="nav-links" id="nav-links">
+        <li><a href="index.html" class="nav-link">Home</a></li>
+        <li><a href="about.html" class="nav-link">About</a></li>
+        <li class="nav-dropdown"><a href="basketball.html" class="nav-link">Programmes ▾</a>
+          <ul class="dropdown-menu">
+            <li><a href="basketball.html">Basketball Sessions</a></li>
+            <li><a href="schools.html">School Programmes</a></li>
+            <li><a href="pathways.html">Pathways</a></li>
+          </ul>
+        </li>
+        <li><a href="schools.html" class="nav-link">Schools</a></li>
+        <li><a href="timetable.html" class="nav-link active">Timetable</a></li>
+        <li><a href="team.html" class="nav-link">Team</a></li>
+        <li><a href="success-stories.html" class="nav-link">Success Stories</a></li>
+        <li><a href="partners.html" class="nav-link">Partners</a></li>
+        <li><a href="contact.html" class="nav-link btn-nav">Contact Us</a></li>
+      </ul>
+    </nav>
+  </header>
+
+  <section class="section" style="padding-top:140px;">
+    <div class="container">
+      <h1 style="color:var(--dark);font-size:2.2rem;">Bookings Admin</h1>
+
+      <form id="login" class="contact-form" style="max-width:420px;margin-top:24px;">
+        <div class="form-group"><label for="password">Admin password</label><input id="password" type="password" autocomplete="current-password" required /></div>
+        <button class="btn btn-primary" type="submit">Sign in</button>
+        <p id="login-error" class="field-error" role="alert"></p>
+      </form>
+
+      <div id="dash" hidden>
+        <div id="capacity" class="plan-grid" style="margin:24px 0;"></div>
+
+        <h2 style="color:var(--dark);font-size:1.5rem;margin-top:32px;">Download a register</h2>
+        <div class="contact-form" style="display:flex;gap:12px;flex-wrap:wrap;align-items:end;margin:12px 0 32px;">
+          <div class="form-group" style="margin:0;min-width:260px;"><label for="register-session">Session date</label><select id="register-session"></select></div>
+          <button class="btn btn-primary" id="download" type="button">Download CSV</button>
+        </div>
+
+        <h2 style="color:var(--dark);font-size:1.5rem;">Members</h2>
+        <div class="date-filter" role="group" aria-label="Show members for" style="margin-top:12px;">
+          <button type="button" class="filter-btn" data-show="all" aria-pressed="true">All</button>
+          <button type="button" class="filter-btn" data-show="mon" aria-pressed="false">Monday</button>
+          <button type="button" class="filter-btn" data-show="fri" aria-pressed="false">Friday</button>
+        </div>
+        <div style="overflow-x:auto;">
+          <table class="timetable-table" id="members">
+            <thead><tr><th>Child</th><th>Parent</th><th>Phone</th><th>Email</th><th>Plan</th><th>Status</th><th>Payment</th><th>Pays on</th><th>Signed up</th></tr></thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <script src="js/main.js"></script>
+  <script src="js/admin.js"></script>
+</body>
+</html>

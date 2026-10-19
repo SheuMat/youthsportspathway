@@ -1,0 +1,14 @@
+{
+  "name": "youthsportspathway",
+  "private": true,
+  "type": "module",
+  "engines": { "node": ">=20" },
+  "scripts": {
+    "dev": "node scripts/dev-server.js",
+    "seed": "node scripts/seed.js",
+    "test:e2e": "node scripts/e2e-test.js"
+  },
+  "dependencies": {
+    "postgres": "^3.4.5"
+  }
+}
