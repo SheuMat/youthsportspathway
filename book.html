@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" /><meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Book Now | Youth Sports Pathway</title>
-  <meta name="description" content="Book a free basketball taster session with Youth Sports Pathway at Ecclesfield School, Sheffield. Grassroots (5–10) and Development (11–15)." />
+  <meta name="description" content="Book a free basketball taster or join YSP Grassroots (5–10) or Development (11–15) Basketball from £30/month at Ecclesfield School, Sheffield." />
   <link rel="stylesheet" href="css/style.css" />
   <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;600;700;800;900&family=Barlow:wght@400;500;600;700&display=swap" rel="stylesheet" />
 </head>
@@ -33,23 +33,55 @@
     </nav>
   </header>
 
-  <section class="page-hero">
+  <section class="page-hero book-hero">
     <div class="container">
       <span class="eyebrow">Book Now</span>
       <h1>Book Now</h1>
-      <p>Book a free taster session for your child. Tasters are free — no payment or Direct Debit details needed.</p>
+      <p>Weekly basketball for ages 5–15 at Ecclesfield School, Sheffield. Start with a free taster, or join as a member.</p>
     </div>
   </section>
 
-  <section class="section">
+  <section class="book-paths">
+    <div class="container book-paths-grid">
+      <a href="#taster" class="book-path book-path-taster" data-mode="taster">
+        <span class="book-path-tag">Free · No payment</span>
+        <h2>Book a Free Taster</h2>
+        <p>Come and try a session before you join. No payment or bank details needed.</p>
+        <ul class="book-path-points">
+          <li>Grassroots (5–10) or Development (11–15)</li>
+          <li>Choose your day and date</li>
+          <li>One free taster per child</li>
+        </ul>
+        <span class="btn btn-white">Book Free Taster →</span>
+      </a>
+      <a href="#join" class="book-path book-path-join" data-mode="join">
+        <span class="book-path-tag">From £30 / month</span>
+        <h2>Join &amp; Pay Monthly</h2>
+        <p>Become a member and pay by Direct Debit. One or two sessions a week.</p>
+        <ul class="book-path-points">
+          <li>£30/month — one session a week</li>
+          <li>£50/month — both weekly sessions</li>
+          <li>Secure Direct Debit via GoCardless</li>
+        </ul>
+        <span class="btn btn-primary">See Membership Options →</span>
+      </a>
+    </div>
+  </section>
+
+  <section class="section book-panel" id="taster" data-panel="taster" hidden>
     <div class="container form-narrow">
+      <div class="book-panel-head">
+        <span class="eyebrow">Free Taster</span>
+        <h2>Book Your Free Taster</h2>
+        <p>Takes about two minutes. There's nothing to pay. One free taster per child.</p>
+      </div>
       <form id="taster-form" class="contact-form" novalidate>
         <fieldset class="form-fieldset">
-          <legend>1. Choose a Programme</legend>
+          <legend>1. Programme</legend>
           <div class="choice-grid" data-ysp="programme-choices"></div>
         </fieldset>
         <fieldset class="form-fieldset">
-          <legend>2. Choose a Session Day</legend>
+          <legend>2. Session Day &amp; Date</legend>
           <div class="choice-grid" data-ysp="day-choices"><p style="font-size:0.9rem;">Choose a programme first.</p></div>
           <div class="form-group" style="margin-top:20px;">
             <label for="taster-date">Preferred Taster Date *</label>
@@ -105,15 +137,101 @@
         <button type="submit" class="btn btn-primary form-submit">Book Free Taster</button>
         <p style="font-size:0.8rem;margin-top:12px;opacity:0.75;">This is a request — we'll confirm your place by email or phone.</p>
       </form>
+      <p class="book-switch">Ready to join instead? <a href="#join" data-mode="join">See membership options</a></p>
     </div>
   </section>
 
-  <section class="section bg-red">
-    <div class="container text-center">
-      <span class="eyebrow light">Already Tried a Session?</span>
-      <h2>Join as a Member</h2>
-      <p style="max-width:560px;margin:16px auto 40px;opacity:0.9;" data-ysp="membership-summary">£30/month for one session weekly, or £50/month for both sessions within the selected programme.</p>
-      <a href="register.html" class="btn btn-white">Register for Membership</a>
+  <section class="section book-panel book-panel-join" id="join" data-panel="join" hidden>
+    <div class="container">
+      <div class="book-panel-head text-center">
+        <span class="eyebrow">Membership</span>
+        <h2>Choose Your Membership</h2>
+        <p>Pick your programme and how many sessions a week. Grassroots and Development are separate memberships.</p>
+      </div>
+      <div class="plans" data-ysp="plans"></div>
+    </div>
+    <div class="container form-narrow" id="join-form" data-join-form hidden>
+      <div class="book-panel-head">
+        <span class="eyebrow">Your Details</span>
+        <h2>Complete Your Membership</h2>
+        <p data-ysp="plan-chosen"></p>
+      </div>
+      <form id="register-form" class="contact-form" novalidate>
+        <fieldset class="form-fieldset">
+          <legend>1. Programme</legend>
+          <div class="choice-grid" data-ysp="programme-choices"></div>
+        </fieldset>
+        <fieldset class="form-fieldset">
+          <legend>2. Membership</legend>
+          <div class="choice-grid" data-ysp="membership-choices"><p style="font-size:0.9rem;">Choose a programme first.</p></div>
+        </fieldset>
+        <fieldset class="form-fieldset" data-ysp="day-fieldset" hidden>
+          <legend>3. Session Day</legend>
+          <div class="choice-grid" data-ysp="day-choices"></div>
+        </fieldset>
+        <fieldset class="form-fieldset">
+          <legend>4. Parent / Guardian</legend>
+          <div class="form-group"><label for="reg-parent-name">Full Name *</label><input type="text" id="reg-parent-name" name="parentName" required maxlength="120" autocomplete="name" /></div>
+          <div class="form-row">
+            <div class="form-group"><label for="reg-parent-email">Email *</label><input type="email" id="reg-parent-email" name="parentEmail" required maxlength="200" autocomplete="email" /></div>
+            <div class="form-group"><label for="reg-parent-phone">Telephone *</label><input type="tel" id="reg-parent-phone" name="parentPhone" required maxlength="30" autocomplete="tel" pattern="[0-9+() \-]{10,20}" /></div>
+          </div>
+        </fieldset>
+        <fieldset class="form-fieldset">
+          <legend>5. Child</legend>
+          <div class="form-row">
+            <div class="form-group"><label for="reg-child-name">Child's Full Name *</label><input type="text" id="reg-child-name" name="childName" required maxlength="120" /></div>
+            <div class="form-group"><label for="reg-child-age">Child's Age *</label><input type="number" id="reg-child-age" name="childAge" required min="5" max="15" step="1" inputmode="numeric" /></div>
+          </div>
+        </fieldset>
+        <fieldset class="form-fieldset">
+          <legend>6. Emergency Contact &amp; Medical</legend>
+          <div class="form-row">
+            <div class="form-group"><label for="reg-emergency-name">Emergency Contact Name *</label><input type="text" id="reg-emergency-name" name="emergencyName" required maxlength="120" /></div>
+            <div class="form-group"><label for="reg-emergency-phone">Emergency Contact Telephone *</label><input type="tel" id="reg-emergency-phone" name="emergencyPhone" required maxlength="30" pattern="[0-9+() \-]{10,20}" /></div>
+          </div>
+          <div class="form-group">
+            <label for="reg-medical-info">Medical conditions, allergies or additional needs</label>
+            <textarea id="reg-medical-info" name="medicalInfo" maxlength="2000" placeholder="e.g. asthma (inhaler), allergies, or anything that helps us support your child. Leave blank if none."></textarea>
+          </div>
+        </fieldset>
+        <fieldset class="form-fieldset">
+          <legend>7. Consent</legend>
+          <div class="form-group"><label class="form-check"><input type="checkbox" name="participationConsent" required /> I am the child's parent or legal guardian and I give permission for them to take part in YSP basketball sessions. *</label></div>
+          <div class="form-group"><label class="form-check"><input type="checkbox" name="medicalConsent" required /> In an emergency, I give permission for YSP coaches to give first aid and to seek medical treatment for my child if I cannot be contacted. I have told YSP about any medical conditions above. *</label></div>
+          <div class="form-group">
+            <p style="font-size:0.85rem;margin-bottom:8px;"><strong>Photos and video *</strong> — may YSP use photos or videos of your child taking part on our website and social media?</p>
+            <label class="form-check"><input type="radio" name="photoConsent" value="yes" required /> Yes, I give permission</label>
+            <label class="form-check" style="margin-top:6px;"><input type="radio" name="photoConsent" value="no" required /> No, please do not use images of my child</label>
+          </div>
+        </fieldset>
+        <div class="form-group">
+          <label for="reg-notes">Anything else we should know? (optional)</label>
+          <textarea id="reg-notes" name="notes" maxlength="2000"></textarea>
+        </div>
+        <div class="summary-box" data-ysp="reg-summary" aria-live="polite">
+          <h4>Your Membership</h4>
+          <p>Choose a programme and membership to see your monthly price.</p>
+        </div>
+        <div class="summary-box">
+          <h4>Membership Terms</h4>
+          <ul>
+            <li>Membership is for the selected programme and session day(s) only. Grassroots and Development are separate memberships.</li>
+            <li>Payments are collected monthly by Direct Debit through GoCardless and are protected by the Direct Debit Guarantee.</li>
+            <li>Setting up a Direct Debit is not the same as a payment being taken. We'll confirm your start date, collection date and cancellation terms by email before your first payment.</li>
+          </ul>
+        </div>
+        <p style="font-size:0.8rem;opacity:0.75;margin-bottom:16px;">We use these details only to manage your booking and contact you about your child's sessions. Information is stored securely and is not shared except with service providers needed to run our programmes. See our <a href="policies.html#privacy" style="color:var(--red);">privacy information</a>.</p>
+        <div class="form-group"><label class="form-check"><input type="checkbox" name="existingDirectDebit" /> I already pay YSP by Direct Debit (we'll review your existing arrangement instead of setting up a second one).</label></div>
+        <div class="form-group"><label class="form-check"><input type="checkbox" name="termsAck" required /> I have read the membership terms above. *</label></div>
+        <div class="form-group"><label class="form-check"><input type="checkbox" name="privacyAck" required /> I have read the privacy information and agree to YSP using these details to manage this membership. *</label></div>
+        <div class="form-group"><label class="form-check"><input type="checkbox" name="marketingConsent" /> Optional: I'd like to receive YSP news and updates by email. I can unsubscribe at any time.</label></div>
+        <input type="text" name="website" class="hp-field" tabindex="-1" autocomplete="off" aria-hidden="true" />
+        <p class="form-status" role="status" aria-live="polite"></p>
+        <button type="submit" class="btn btn-primary form-submit">Continue</button>
+        <p style="font-size:0.8rem;margin-top:12px;opacity:0.75;">Where online payment is open you'll be taken to GoCardless's secure page to authorise your Direct Debit. YSP never sees your bank details.</p>
+      </form>
+      <p class="book-switch">Not sure yet? <a href="#taster" data-mode="taster">Book a free taster first</a></p>
     </div>
   </section>
 
@@ -129,6 +247,7 @@
   <script src="js/site-data.js"></script>
   <script src="js/site.js"></script>
   <script src="js/forms.js"></script>
+  <script src="js/book.js"></script>
   <script src="js/main.js"></script>
 </body>
 </html>

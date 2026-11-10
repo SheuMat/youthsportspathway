@@ -6,7 +6,7 @@
   <meta name="description" content="This page has moved to Book Now." />
   <meta name="robots" content="noindex" />
   <link rel="canonical" href="book.html" />
-  <script>location.replace('book.html' + location.search + location.hash);</script>
+  <script>(function () { var q = new URLSearchParams(location.search); q.set('mode', 'taster'); location.replace('book.html?' + q.toString() + '#taster'); })();</script>
   <meta http-equiv="refresh" content="0; url=book.html" />
 </head>
 <body><p>This page has moved. <a href="book.html">Book now</a>.</p></body>

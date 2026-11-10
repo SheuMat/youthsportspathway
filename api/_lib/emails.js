@@ -24,14 +24,18 @@ function childBlock(v) {
   ].join('\n');
 }
 
-function tasterToYsp(v, reference) {
+function tasterToYsp(v, reference, warnings = []) {
   const p = YSP.getProgramme(v.programmeId);
   const s = p.sessions.find((x) => x.day === v.day);
+  const warn = warnings.length
+    ? ['⚠ POSSIBLE REPEAT FREE TASTER — please check before confirming:', ...warnings.map((w) => `  • ${w}`), '']
+    : [];
   return {
-    subject: `Free taster booking ${reference}: ${p.name}, ${v.day} ${v.preferredDate}`,
+    subject: `${warnings.length ? '⚠ Possible repeat — ' : ''}Free taster booking ${reference}: ${p.name}, ${v.day} ${v.preferredDate}`,
     text: [
       `New free taster booking — ${reference}`,
       '',
+      ...warn,
       `Programme: ${p.name} (ages ${p.ages})`,
       `Session: ${v.day} ${v.preferredDate}, ${s ? s.time : ''}`,
       `Venue: ${venue()}`,
@@ -58,6 +62,7 @@ function tasterToParent(v, reference) {
       `Reference: ${reference}`,
       '',
       "This is a request, not yet a confirmed place. We'll be in touch to confirm. There's nothing to pay for a taster.",
+      'Please note: there is one free taster per child.',
       '',
       'If anything changes, just reply to this email.',
       '',

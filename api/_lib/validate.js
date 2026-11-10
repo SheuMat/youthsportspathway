@@ -111,4 +111,15 @@ function registration(b) {
   };
 }
 
-module.exports = { enquiry, taster, registration, str, YSP };
+/** Normalised keys used to spot repeat free-taster bookings. */
+function childKey(name) {
+  return String(name || '').toLowerCase().normalize('NFKD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]+/g, ' ').trim();
+}
+function phoneKey(phone) {
+  let d = String(phone || '').replace(/\D/g, '');
+  if (d.startsWith('0044')) d = '0' + d.slice(4);
+  else if (d.startsWith('44') && d.length >= 12) d = '0' + d.slice(2);
+  return d;
+}
+
+module.exports = { enquiry, taster, registration, str, YSP, childKey, phoneKey };

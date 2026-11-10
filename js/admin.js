@@ -36,7 +36,7 @@
     window.YSP.programmes.forEach(function (p) { if (!p.paidRegistrationOpen) b.push(p.name + ': paid registration ON HOLD pending operational approval (js/site-data.js)'); });
     b.forEach(function (t) { out.appendChild(el('div', { class: 'banner' }, [t])); });
 
-    table('Taster requests', [['Ref', 'reference'], ['Status', 'status'], ['Programme', 'programme_id'], ['Day', 'day'], ['Date', 'preferred_date'], ['Child', 'child_name'], ['Age', 'child_age'], ['Parent', 'parent_name'], ['Email', 'parent_email'], ['Phone', 'parent_phone'], ['Notes', 'notes'], ['Marketing', 'marketing_consent']], d.tasters, function (r) {
+    table('Taster requests', [['Ref', 'reference'], ['Status', 'status'], ['Programme', 'programme_id'], ['Day', 'day'], ['Date', 'preferred_date'], ['Child', 'child_name'], ['Age', 'child_age'], ['Parent', 'parent_name'], ['Email', 'parent_email'], ['Phone', 'parent_phone'], ['Repeat check', 'repeat_flag'], ['Photos', 'consent_photo'], ['Emergency', 'emergency_phone'], ['Notes', 'notes'], ['Marketing', 'marketing_consent']], d.tasters, function (r) {
       return [
         el('button', { onclick: act('POST', '/api/admin/tasters/' + r.id, { status: 'confirmed', notifyParent: true }, 'Confirm and email the parent?') }, ['Confirm']),
         el('button', { onclick: act('POST', '/api/admin/tasters/' + r.id, { status: 'declined', notifyParent: true }, 'Decline and email the parent?') }, ['Decline']),

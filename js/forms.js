@@ -48,7 +48,7 @@
       return r.json().catch(function () { return {}; }).then(function (j) {
         if (!r.ok) {
           var e = new Error(j.error || 'Something went wrong.');
-          e.fields = j.fields; throw e;
+          e.fields = j.fields; e.code = j.code; throw e;
         }
         return j;
       });
@@ -164,7 +164,18 @@
         replaceWith(taster, 'Taster Request Received',
           '<p>Thanks — we\'ve received your request for a free <strong>' + esc(p.name) + '</strong> taster on <strong>' + esc(d.day) + ' ' + esc(d.preferredDate) + '</strong>.</p>' +
           '<p style="margin-top:12px;">This is not yet a confirmed place. We\'ll contact you to confirm the date. Your reference is <strong>' + esc(r.reference) + '</strong>.</p>');
-      }).catch(function (err) { busy(taster, false); setStatus(taster, failMsg(err), true); });
+      }).catch(function (err) {
+        busy(taster, false);
+        setStatus(taster, failMsg(err), true);
+        if (err.code === 'taster_already_used') {
+          var st = taster.querySelector('.form-status');
+          var a = document.createElement('a');
+          a.href = 'book.html?mode=join#join'; a.setAttribute('data-mode', 'join');
+          a.className = 'btn btn-primary'; a.style.marginTop = '12px'; a.style.display = 'inline-block';
+          a.textContent = 'See membership options';
+          st.appendChild(document.createElement('br')); st.appendChild(a);
+        }
+      });
     });
   }
 
@@ -213,6 +224,19 @@
     }
     renderProgrammeChoices(reg, renderMemberships);
     memBox.addEventListener('change', renderDayPicker);
+
+    // Lets the Book Now plan cards preselect a membership in this form.
+    window.YSPSelectMembership = function (membershipId) {
+      var m = Y.getMembership(membershipId);
+      if (!m) return;
+      var pInput = reg.querySelector('[name=programmeId][value="' + m.programmeId + '"]');
+      if (pInput) pInput.checked = true;
+      renderMemberships();
+      var mInput = memBox.querySelector('[name=membershipId][value="' + m.id + '"]');
+      if (mInput) mInput.checked = true;
+      renderDayPicker();
+      setStatus(reg, '');
+    };
     regDayBox.addEventListener('change', updateSummary);
 
     reg.addEventListener('submit', function (e) {
