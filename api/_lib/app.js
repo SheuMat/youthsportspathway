@@ -248,7 +248,7 @@ function createApp({ config, db, gc, notify, log = console, now = () => new Date
         if (!fn) return send(res, 404, { error: 'Not found' });
         if (req.method !== 'POST') return send(res, 405, { error: 'Method not allowed' }, { Allow: 'POST' });
         if (!sameOrigin(req)) return send(res, 403, { error: 'Forbidden' });
-        if (rateLimited(req, url.pathname)) return send(res, 429, { error: 'Too many submissions. Please try again later or email youthsportspathway@gmail.com.' });
+        if (rateLimited(req, url.pathname)) return send(res, 429, { error: 'Too many submissions. Please try again later or email info@youthsportspathway.co.uk.' });
         return await fn(req, res);
       }
       if (req.method !== 'GET' && req.method !== 'HEAD') return send(res, 405, 'Method not allowed', { 'Content-Type': 'text/plain' });
@@ -256,7 +256,7 @@ function createApp({ config, db, gc, notify, log = console, now = () => new Date
     } catch (err) {
       const status = err.status && err.status < 500 ? err.status : 500;
       if (status === 500) log.error('[server]', err);
-      if (!res.headersSent) send(res, status, { error: status === 500 ? 'Something went wrong. Please try again or email youthsportspathway@gmail.com.' : err.message });
+      if (!res.headersSent) send(res, status, { error: status === 500 ? 'Something went wrong. Please try again or email info@youthsportspathway.co.uk.' : err.message });
     }
   }
 

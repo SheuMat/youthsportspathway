@@ -3,7 +3,7 @@
 (function () {
   'use strict';
   var Y = window.YSP;
-  var EMAIL = (Y && Y.contact.email) || 'youthsportspathway@gmail.com';
+  var EMAIL = (Y && Y.contact.email) || 'info@youthsportspathway.co.uk';
   var params = new URLSearchParams(window.location.search);
 
   function esc(s) {

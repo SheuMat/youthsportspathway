@@ -26,7 +26,7 @@ One-time setup in the Vercel dashboard (project **youthsportspathway**):
 2. **Settings → Environment Variables** (Production; Preview too if you want to test there):
    - `ADMIN_TOKEN`: a long random string (`openssl rand -hex 24`).
    - `PUBLIC_BASE_URL`: `https://www.youthsportspathway.co.uk`
-   - Optional email: `SMTP_HOST=smtp.gmail.com`, `SMTP_PORT=465`, `SMTP_USER=youthsportspathway@gmail.com`, `SMTP_PASS=<Gmail App Password>`.
+   - Email: `RESEND_API_KEY` (see "Email (Resend)" below).
    - GoCardless sandbox (when ready): `GOCARDLESS_ENVIRONMENT=sandbox`, `GOCARDLESS_ACCESS_TOKEN`, `GOCARDLESS_WEBHOOK_SECRET`.
 3. **Deployments → Redeploy** the latest production deployment so the variables take effect.
 4. Check `https://www.youthsportspathway.co.uk/api/health`. It should show `"database":"postgres"`.
