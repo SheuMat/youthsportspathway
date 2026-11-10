@@ -87,33 +87,4 @@ document.querySelectorAll('.nav-link').forEach(link => {
   else link.classList.remove('active');
 });
 
-// Contact form handler
-const contactForm = document.getElementById('contact-form');
-if (contactForm) {
-  contactForm.addEventListener('submit', (e) => {
-    e.preventDefault();
-    const btn = contactForm.querySelector('.form-submit');
-    btn.textContent = 'Sending…';
-    btn.disabled = true;
-    setTimeout(() => {
-      contactForm.innerHTML = `
-        <div style="text-align:center;padding:40px 20px;">
-          <div style="font-size:3rem;margin-bottom:16px;">✅</div>
-          <h3 style="margin-bottom:12px;">Message Sent!</h3>
-          <p>Thanks for getting in touch. We'll be back in touch within 24 hours.</p>
-        </div>`;
-    }, 1200);
-  });
-}
-
-// Email sign-up handler
-const emailForm = document.getElementById('email-form');
-if (emailForm) {
-  emailForm.addEventListener('submit', (e) => {
-    e.preventDefault();
-    const btn = emailForm.querySelector('[type=submit]');
-    btn.textContent = '✓ Subscribed!';
-    btn.style.background = '#22c55e';
-    btn.disabled = true;
-  });
-}
+// Form submissions are handled in js/forms.js

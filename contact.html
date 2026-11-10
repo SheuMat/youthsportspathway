@@ -3,6 +3,7 @@
 <head>
   <meta charset="UTF-8" /><meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Contact Us | Youth Sports Pathway</title>
+  <meta name="description" content="Contact Youth Sports Pathway about basketball sessions, school programmes or partnerships. Email youthsportspathway@gmail.com." />
   <link rel="stylesheet" href="css/style.css" />
   <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;600;700;800;900&family=Barlow:wght@400;500;600;700&display=swap" rel="stylesheet" />
 </head>
@@ -10,7 +11,7 @@
   <header class="site-header" id="site-header">
     <nav class="nav container">
       <a href="index.html" class="nav-logo"><img src="assets/ysp-logo.png" alt="YSP" class="logo-img" /></a>
-      <button class="nav-toggle" id="nav-toggle"><span></span><span></span><span></span></button>
+      <button class="nav-toggle" id="nav-toggle" aria-label="Toggle menu"><span></span><span></span><span></span></button>
       <ul class="nav-links" id="nav-links">
         <li><a href="index.html" class="nav-link">Home</a></li>
         <li><a href="about.html" class="nav-link">About</a></li>
@@ -50,14 +51,14 @@
             <div class="contact-detail-icon">📧</div>
             <div>
               <strong>Email</strong>
-              <p><a href="mailto:info@youthsportspathway.co.uk" style="color:var(--red);">info@youthsportspathway.co.uk</a></p>
+              <p><a href="mailto:youthsportspathway@gmail.com" style="color:var(--red);">youthsportspathway@gmail.com</a></p>
             </div>
           </div>
           <div class="contact-detail">
             <div class="contact-detail-icon">💬</div>
             <div>
               <strong>WhatsApp</strong>
-              <p>Message us directly for quick replies — join our community group for updates.</p>
+              <p>Join our community group for session updates.</p>
               <a href="community.html" style="color:var(--red);font-weight:600;font-size:0.9rem;">Join WhatsApp Community →</a>
             </div>
           </div>
@@ -66,7 +67,7 @@
             <div>
               <strong>Based In</strong>
               <p>Sheffield, South Yorkshire</p>
-              <p style="font-size:0.85rem;opacity:0.7;">Sessions delivered across multiple Sheffield venues.</p>
+              <p style="font-size:0.85rem;opacity:0.7;">Weekly basketball at Ecclesfield School, Chapeltown Road, Sheffield S35 9WD.</p>
             </div>
           </div>
           <div class="contact-detail">
@@ -96,43 +97,45 @@
           <div class="form-row">
             <div class="form-group">
               <label for="first-name">First Name *</label>
-              <input type="text" id="first-name" placeholder="First name" required />
+              <input type="text" id="first-name" name="firstName" placeholder="First name" required maxlength="100" autocomplete="given-name" />
             </div>
             <div class="form-group">
               <label for="last-name">Last Name *</label>
-              <input type="text" id="last-name" placeholder="Last name" required />
+              <input type="text" id="last-name" name="lastName" placeholder="Last name" required maxlength="100" autocomplete="family-name" />
             </div>
           </div>
           <div class="form-group">
             <label for="email">Email Address *</label>
-            <input type="email" id="email" placeholder="your@email.com" required />
+            <input type="email" id="email" name="email" placeholder="your@email.com" required maxlength="200" autocomplete="email" />
           </div>
           <div class="form-group">
             <label for="phone">Phone Number</label>
-            <input type="tel" id="phone" placeholder="07xxx xxxxxx" />
+            <input type="tel" id="phone" name="phone" placeholder="07xxx xxxxxx" maxlength="30" autocomplete="tel" />
           </div>
           <div class="form-group">
             <label for="enquiry-type">Enquiry Type *</label>
-            <select id="enquiry-type" required>
+            <select id="enquiry-type" name="type" required>
               <option value="">Select enquiry type</option>
-              <option>Book a Basketball Session</option>
-              <option>School Programme Enquiry</option>
-              <option>Partnership / Sponsorship</option>
-              <option>Coaching / Employment</option>
-              <option>General Enquiry</option>
-              <option>Other</option>
+              <option value="sessions">Basketball Sessions</option>
+              <option value="school">School Programme Enquiry</option>
+              <option value="partnership">Partnership / Sponsorship</option>
+              <option value="coaching">Coaching / Employment</option>
+              <option value="general">General Enquiry</option>
             </select>
+            <p style="font-size:0.85rem;margin-top:8px;">Want to try a session? <a href="taster.html" style="color:var(--red);font-weight:600;">Book a free taster</a> or <a href="register.html" style="color:var(--red);font-weight:600;">register for membership</a>.</p>
           </div>
           <div class="form-group">
             <label for="message">Message *</label>
-            <textarea id="message" placeholder="Tell us how we can help…" required></textarea>
+            <textarea id="message" name="message" placeholder="Tell us how we can help…" required maxlength="5000"></textarea>
           </div>
           <div class="form-group">
             <label style="display:flex;align-items:flex-start;gap:10px;cursor:pointer;font-size:0.85rem;letter-spacing:0;text-transform:none;">
-              <input type="checkbox" required style="width:auto;margin-top:2px;" />
-              I agree to YSP's <a href="policies.html" style="color:var(--red);">Privacy Policy</a> and consent to being contacted regarding my enquiry.
+              <input type="checkbox" name="privacyAck" required style="width:auto;margin-top:2px;" />
+              I have read YSP's <a href="policies.html#privacy" style="color:var(--red);">privacy information</a> and agree to be contacted about my enquiry.
             </label>
           </div>
+          <input type="text" name="website" class="hp-field" tabindex="-1" autocomplete="off" aria-hidden="true" />
+          <p class="form-status" role="status" aria-live="polite"></p>
           <button type="submit" class="btn btn-primary form-submit">Send Message</button>
         </form>
       </div>
@@ -144,10 +147,10 @@
       <span class="eyebrow">Quick Actions</span>
       <h2>What Would You Like to Do?</h2>
       <div style="display:flex;gap:16px;justify-content:center;flex-wrap:wrap;margin-top:40px;">
-        <a href="basketball.html" class="btn btn-primary">Book a Session</a>
+        <a href="taster.html" class="btn btn-primary">Book a Free Taster</a>
         <a href="timetable.html" class="btn btn-outline">View Timetable</a>
         <a href="community.html" class="btn btn-outline">Join WhatsApp</a>
-        <a href="schools.html" class="btn btn-outline">School Enquiry</a>
+        <a href="contact.html?type=school#contact-form" class="btn btn-outline">School Enquiry</a>
       </div>
     </div>
   </section>
@@ -161,6 +164,8 @@
     </div>
     <div class="footer-bottom container"><p>© 2025 Youth Sports Pathway Ltd.</p><p><a href="policies.html">Privacy</a> · <a href="policies.html">Terms</a></p></div>
   </footer>
+  <script src="js/site-data.js"></script>
+  <script src="js/forms.js"></script>
   <script src="js/main.js"></script>
 </body>
 </html>
