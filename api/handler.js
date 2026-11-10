@@ -7,13 +7,15 @@ let app;
 function getApp() {
   if (!app) {
     const config = load();
-    if (!config.databaseUrl) {
-      // No persistent disk on Vercel: refuse to fall back to a throwaway SQLite file.
-      const err = new Error('DATABASE_URL is not configured');
+    const emailReady = Boolean(config.email.resendApiKey || (config.email.smtp.host && config.email.smtp.user && config.email.smtp.pass));
+    if (!config.databaseUrl && !emailReady) {
+      // No persistent disk on Vercel and no way to email submissions: refuse rather than lose them.
+      const err = new Error('Neither DATABASE_URL nor email is configured');
       err.status = 503;
       throw err;
     }
-    app = createApp({ config });
+    // With email but no database: email-only mode (nothing stored, no Direct Debit, no admin).
+    app = createApp({ config, db: config.databaseUrl ? undefined : null });
   }
   return app;
 }

@@ -22,6 +22,8 @@ CREATE TABLE IF NOT EXISTS tasters (
   programme_id TEXT NOT NULL, day TEXT NOT NULL, preferred_date TEXT NOT NULL,
   parent_name TEXT NOT NULL, parent_email TEXT NOT NULL, parent_phone TEXT NOT NULL,
   child_name TEXT NOT NULL, child_age INTEGER NOT NULL, notes TEXT,
+  emergency_name TEXT, emergency_phone TEXT, medical_info TEXT,
+  consent_participation INTEGER NOT NULL DEFAULT 0, consent_medical INTEGER NOT NULL DEFAULT 0, consent_photo TEXT,
   marketing_consent INTEGER NOT NULL DEFAULT 0,
   status TEXT NOT NULL DEFAULT 'requested',
   created_at ${ts},
@@ -35,6 +37,8 @@ CREATE TABLE IF NOT EXISTS registrations (
   amount_pence INTEGER NOT NULL,
   parent_name TEXT NOT NULL, parent_email TEXT NOT NULL, parent_phone TEXT NOT NULL,
   child_name TEXT NOT NULL, child_age INTEGER NOT NULL, notes TEXT,
+  emergency_name TEXT, emergency_phone TEXT, medical_info TEXT,
+  consent_participation INTEGER NOT NULL DEFAULT 0, consent_medical INTEGER NOT NULL DEFAULT 0, consent_photo TEXT,
   marketing_consent INTEGER NOT NULL DEFAULT 0,
   existing_direct_debit INTEGER NOT NULL DEFAULT 0,
   registration_status TEXT NOT NULL,
@@ -63,6 +67,12 @@ CREATE TABLE IF NOT EXISTS audit_log (
 );
 `;
 
+// Columns added after the first release. Applied to existing databases on start-up.
+const ADDED_COLUMNS = {
+  tasters: ['emergency_name TEXT', 'emergency_phone TEXT', 'medical_info TEXT', 'consent_participation INTEGER NOT NULL DEFAULT 0', 'consent_medical INTEGER NOT NULL DEFAULT 0', 'consent_photo TEXT'],
+  registrations: ['emergency_name TEXT', 'emergency_phone TEXT', 'medical_info TEXT', 'consent_participation INTEGER NOT NULL DEFAULT 0', 'consent_medical INTEGER NOT NULL DEFAULT 0', 'consent_photo TEXT']
+};
+
 function withAudit(db) {
   db.audit = (entity, id, event, detail) =>
     db.run('INSERT INTO audit_log (entity, entity_id, event, detail) VALUES (?, ?, ?, ?)',
@@ -76,6 +86,10 @@ function openSqlite(file) {
   const s = new DatabaseSync(file);
   s.exec('PRAGMA journal_mode = WAL; PRAGMA foreign_keys = ON;');
   s.exec(TABLES('INTEGER PRIMARY KEY AUTOINCREMENT', 'TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP'));
+  for (const [table, cols] of Object.entries(ADDED_COLUMNS)) {
+    const have = new Set(s.prepare(`PRAGMA table_info(${table})`).all().map((c) => c.name));
+    for (const col of cols) if (!have.has(col.split(' ')[0])) s.exec(`ALTER TABLE ${table} ADD COLUMN ${col}`);
+  }
   const norm = (p) => p.map((v) => (v === undefined ? null : typeof v === 'boolean' ? Number(v) : v));
   return withAudit({
     kind: 'sqlite',
@@ -100,7 +114,8 @@ function openPostgres(url) {
     ssl: /localhost|127\.0\.0\.1/.test(url) ? false : { rejectUnauthorized: true }
   });
   let ready = null;
-  const migrate = () => (ready = ready || pool.query(TABLES('SERIAL PRIMARY KEY', 'TIMESTAMPTZ NOT NULL DEFAULT now()')).catch((e) => { ready = null; throw e; }));
+  const alters = Object.entries(ADDED_COLUMNS).flatMap(([t, cols]) => cols.map((c) => `ALTER TABLE ${t} ADD COLUMN IF NOT EXISTS ${c};`)).join('\n');
+  const migrate = () => (ready = ready || pool.query(TABLES('SERIAL PRIMARY KEY', 'TIMESTAMPTZ NOT NULL DEFAULT now()') + alters).catch((e) => { ready = null; throw e; }));
   const toPg = (sql) => { let i = 0; return sql.replace(/\?/g, () => `$${++i}`); };
   const norm = (p) => p.map((v) => (v === undefined ? null : typeof v === 'boolean' ? Number(v) : v));
   async function q(sql, p) { await migrate(); return pool.query(toPg(sql), norm(p)); }

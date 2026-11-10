@@ -1398,3 +1398,12 @@ p  { font-size: 1rem; color: inherit; opacity: 0.85; }
   .timetable-responsive td { display: flex; justify-content: space-between; gap: 12px; border: 0 !important; padding: 6px 16px !important; text-align: right; }
   .timetable-responsive td::before { content: attr(data-label); font-weight: 700; text-align: left; font-family: var(--font-head); text-transform: uppercase; letter-spacing: 1px; font-size: 0.8rem; }
 }
+
+/* Keep menu labels on one line now the menu has a Book Now button */
+.nav-link { white-space: nowrap; }
+@media (min-width: 769px) and (max-width: 1200px) {
+  .nav-links { gap: 0; }
+  .nav-link { font-size: 0.78rem; letter-spacing: 0.5px; padding: 8px 7px; }
+  .nav-link.btn-nav { padding: 8px 12px; margin-left: 4px; }
+  .logo-img { max-height: 40px; width: auto; }
+}

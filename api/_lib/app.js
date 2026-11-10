@@ -7,6 +7,7 @@ const gocardless = require('./gocardless');
 const billingMod = require('./billing');
 const notifyMod = require('./notify');
 const dbMod = require('./db');
+const emails = require('./emails');
 
 const TYPES = {
   '.html': 'text/html; charset=utf-8', '.css': 'text/css; charset=utf-8', '.js': 'text/javascript; charset=utf-8',
@@ -25,10 +26,13 @@ const SECURITY_HEADERS = {
 };
 
 function createApp({ config, db, gc, notify, log = console, now = () => new Date() }) {
-  db = db || dbMod.open(config.databaseUrl || config.databasePath);
-  notify = notify || notifyMod.create(config.smtp, log);
-  if (gc === undefined) gc = config.gocardless.enabled ? gocardless.client(config.gocardless) : null;
-  const billing = billingMod.create({ db, config, gc, notify, log });
+  // db === null means "email-only" mode: submissions are emailed but not stored.
+  if (db === undefined) db = dbMod.open(config.databaseUrl || config.databasePath);
+  notify = notify || notifyMod.create(config.email, log);
+  if (gc === undefined) gc = config.gocardless.enabled && db ? gocardless.client(config.gocardless) : null;
+  const billing = db ? billingMod.create({ db, config, gc, notify, log }) : null;
+  const emailOnly = !db;
+  const UNAVAILABLE = 'We couldn\'t send your form just now. Please try again, or email ' + validate.YSP.contact.email + '.';
   const hits = new Map();
 
   function send(res, status, body, headers = {}) {
@@ -86,9 +90,13 @@ function createApp({ config, db, gc, notify, log = console, now = () => new Date
     const { c, v } = validate.enquiry(b);
     if (!c.ok) return invalid(res, c);
     const reference = billingMod.newReference('YSPE');
-    await db.run('INSERT INTO enquiries (reference, type, first_name, last_name, email, phone, message, marketing_consent) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
-      reference, v.type, v.firstName, v.lastName, v.email, v.phone, v.message, v.marketingConsent ? 1 : 0);
-    notify.toYsp(`New ${v.type} enquiry ${reference}`, `From: ${v.firstName} ${v.lastName} <${v.email}> ${v.phone}\nType: ${v.type}\nMarketing consent: ${v.marketingConsent ? 'yes' : 'no'}\n\n${v.message}`);
+    if (db) {
+      await db.run('INSERT INTO enquiries (reference, type, first_name, last_name, email, phone, message, marketing_consent) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
+        reference, v.type, v.firstName, v.lastName, v.email, v.phone, v.message, v.marketingConsent ? 1 : 0);
+    }
+    const m = emails.enquiryToYsp(v, reference);
+    const delivered = await notify.toYsp(m.subject, m.text, v.email);
+    if (emailOnly && !delivered) return send(res, 503, { error: UNAVAILABLE });
     send(res, 201, { ok: true, reference });
   }
 
@@ -98,14 +106,18 @@ function createApp({ config, db, gc, notify, log = console, now = () => new Date
     const { c, v } = validate.taster(b, now().toISOString().slice(0, 10));
     if (!c.ok) return invalid(res, c);
     const reference = billingMod.newReference('YSPT');
-    const r = await db.run(`INSERT INTO tasters (reference, programme_id, day, preferred_date, parent_name, parent_email, parent_phone, child_name, child_age, notes, marketing_consent)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING id`, reference, v.programmeId, v.day, v.preferredDate, v.parentName, v.parentEmail, v.parentPhone, v.childName, v.childAge, v.notes, v.marketingConsent ? 1 : 0);
-    await db.audit('taster', Number(r.rows[0].id), 'created', 'requested');
-    const p = validate.YSP.getProgramme(v.programmeId);
-    notify.toYsp(`Taster request ${reference}: ${p.name} ${v.day} ${v.preferredDate}`,
-      `Child: ${v.childName} (${v.childAge})\nParent: ${v.parentName}, ${v.parentEmail}, ${v.parentPhone}\nProgramme: ${p.name}\nDay/date: ${v.day} ${v.preferredDate}\nNotes: ${v.notes || '-'}\nMarketing consent: ${v.marketingConsent ? 'yes' : 'no'}\n\nConfirm or decline in the admin page.`);
-    notify.toParent(v.parentEmail, `Free taster request received (${reference})`,
-      `Hi ${v.parentName},\n\nThanks for requesting a free ${p.name} taster for ${v.childName} on ${v.day} ${v.preferredDate}.\n\nThis is a request, not yet a confirmed place — we'll be in touch to confirm.\n\nVenue: ${validate.YSP.venue.name}, ${validate.YSP.venue.address}\nReference: ${reference}\n\nYouth Sports Pathway`);
+    if (db) {
+      const r = await db.run(`INSERT INTO tasters (reference, programme_id, day, preferred_date, parent_name, parent_email, parent_phone, child_name, child_age, notes, marketing_consent,
+        emergency_name, emergency_phone, medical_info, consent_participation, consent_medical, consent_photo)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING id`, reference, v.programmeId, v.day, v.preferredDate, v.parentName, v.parentEmail, v.parentPhone, v.childName, v.childAge, v.notes, v.marketingConsent ? 1 : 0,
+        v.emergencyName, v.emergencyPhone, v.medicalInfo, 1, 1, v.photoConsent);
+      await db.audit('taster', Number(r.rows[0].id), 'created', 'requested');
+    }
+    const toYsp = emails.tasterToYsp(v, reference);
+    const delivered = await notify.toYsp(toYsp.subject, toYsp.text, v.parentEmail);
+    if (emailOnly && !delivered) return send(res, 503, { error: UNAVAILABLE });
+    const ack = emails.tasterToParent(v, reference);
+    await notify.toParent(v.parentEmail, ack.subject, ack.text);
     send(res, 201, { ok: true, reference, status: 'requested' });
   }
 
@@ -114,11 +126,28 @@ function createApp({ config, db, gc, notify, log = console, now = () => new Date
     if (b.website) return send(res, 200, { ok: true, reference: 'YSPM-OK', message: 'Thanks.' });
     const { c, v } = validate.registration(b);
     if (!c.ok) return invalid(res, c);
-    const out = await billing.register(v);
-    send(res, 201, { ok: true, ...out });
+    if (billing) {
+      const out = await billing.register(v);
+      return send(res, 201, { ok: true, ...out });
+    }
+    // Email-only: no Direct Debit without a database to track it.
+    const reference = billingMod.newReference('YSPM');
+    const message = v.existingDirectDebit
+      ? "Thanks — we've received your registration. As you already pay YSP by Direct Debit, we'll review your existing arrangement rather than setting up a second one."
+      : v.programme.paidRegistrationOpen
+        ? "Thanks — we've received your registration. We'll email you a secure GoCardless link to set up your monthly Direct Debit."
+        : `Thanks — we've received your registration for ${v.programme.name}. Places are being finalised, and we'll contact you to confirm before any Direct Debit is set up.`;
+    const status = v.programme.paidRegistrationOpen ? (v.existingDirectDebit ? 'existing_customer_review' : 'submitted') : 'awaiting_operational_approval';
+    const toYsp = emails.registrationToYsp(v, reference, status);
+    const delivered = await notify.toYsp(toYsp.subject, toYsp.text, v.parentEmail);
+    if (!delivered) return send(res, 503, { error: UNAVAILABLE });
+    const ack = emails.registrationToParent(v, reference, message);
+    await notify.toParent(v.parentEmail, ack.subject, ack.text);
+    send(res, 201, { ok: true, status, reference, message });
   }
 
   async function postWebhook(req, res) {
+    if (!billing) return send(res, 503, { error: 'Database not configured' });
     if (!config.gocardless.webhookSecret) return send(res, 503, { error: 'Webhooks not configured' });
     const raw = await readBody(req, MAX_WEBHOOK_BODY);
     if (!gocardless.verifySignature(raw, req.headers['webhook-signature'], config.gocardless.webhookSecret)) {
@@ -132,12 +161,14 @@ function createApp({ config, db, gc, notify, log = console, now = () => new Date
 
   // ── Admin API ──
   async function admin(req, res, url) {
+    if (!db) return send(res, 503, { error: 'Admin needs a database (set DATABASE_URL)' });
     if (!config.adminToken) return send(res, 503, { error: 'Admin is not configured (set ADMIN_TOKEN)' });
     if (!isAdmin(req)) return send(res, 401, { error: 'Unauthorised' });
     const p = url.pathname;
     if (req.method === 'GET' && p === '/api/admin/overview') {
       return send(res, 200, {
         database: db.kind,
+        emailProvider: notify.provider,
         gocardless: { enabled: config.gocardless.enabled, environment: config.gocardless.environment, problems: config.gocardless.problems },
         billing: config.billing,
         emailConfigured: notify.configured,
@@ -157,7 +188,7 @@ function createApp({ config, db, gc, notify, log = console, now = () => new Date
       await db.audit('taster', t.id, `status_${b.status}`);
       if (b.notifyParent && (b.status === 'confirmed' || b.status === 'declined')) {
         const prog = validate.YSP.getProgramme(t.programme_id);
-        notify.toParent(t.parent_email, `Your YSP free taster (${t.reference})`, b.status === 'confirmed'
+        await notify.toParent(t.parent_email, `Your YSP free taster (${t.reference})`, b.status === 'confirmed'
           ? `Hi ${t.parent_name},\n\n${t.child_name}'s free ${prog.name} taster is confirmed for ${t.day} ${t.preferred_date}, ${prog.sessions.find((s) => s.day === t.day).time}.\n\nVenue: ${validate.YSP.venue.name}, ${validate.YSP.venue.address}\n\nSee you there!\nYouth Sports Pathway`
           : `Hi ${t.parent_name},\n\nUnfortunately we can't offer the taster on ${t.day} ${t.preferred_date}. We'll be in touch about another date.\n\nYouth Sports Pathway`);
       }
@@ -206,8 +237,9 @@ function createApp({ config, db, gc, notify, log = console, now = () => new Date
       if (url.pathname.startsWith('/api/')) {
         if (url.pathname === '/api/webhooks/gocardless' && req.method === 'POST') return await postWebhook(req, res);
         if (url.pathname.startsWith('/api/admin/')) return await admin(req, res, url);
-        if (url.pathname === '/api/health') return send(res, 200, { ok: true, database: db.kind, gocardless: config.gocardless.enabled ? config.gocardless.environment : 'disabled', email: notify.configured, admin: Boolean(config.adminToken) });
+        if (url.pathname === '/api/health') return send(res, 200, { ok: true, database: db ? db.kind : 'none (email-only)', email: notify.provider, gocardless: config.gocardless.enabled ? config.gocardless.environment : 'disabled', admin: Boolean(config.adminToken) });
         if (url.pathname === '/api/registrations/status' && req.method === 'GET') {
+          if (!billing) return send(res, 404, { error: 'Not found' });
           const s = await billing.publicStatus(String(url.searchParams.get('ref') || '').slice(0, 64));
           return s ? send(res, 200, s) : send(res, 404, { error: 'Not found' });
         }

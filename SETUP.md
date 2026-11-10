@@ -82,6 +82,33 @@ register form → registration saved → billing request + hosted flow → paren
 - Parents who tick "I already pay YSP by Direct Debit" are **not** sent to GoCardless. They are flagged for review so no duplicate mandate is created.
 - The same parent email, child and programme cannot be registered twice while a registration is active or pending.
 
-## Email (optional)
+## Email (Resend)
 
-Set `SMTP_*` and run `npm install`. For Gmail, use an App Password. YSP receives a notification for every enquiry, taster and registration. Parents receive an acknowledgement.
+Every booking, membership registration and enquiry is emailed to **info@youthsportspathway.co.uk** (`NOTIFY_TO`). Replying to one of these emails goes straight to the parent. Parents get an acknowledgement email; their replies go to info@.
+
+**Email-only mode:** if `RESEND_API_KEY` is set but `DATABASE_URL` isn't, the forms still work. Submissions are emailed but not stored, there's no admin page, and no Direct Debit is set up. If the email to YSP fails, the parent sees "please try again" rather than a false confirmation.
+
+Setup:
+1. Create a Resend account at resend.com, then go to **Domains → Add Domain** → `youthsportspathway.co.uk` (region EU / Ireland).
+2. Add the DNS records Resend shows at GoDaddy (DNS for youthsportspathway.co.uk). They are on the `send` and `resend._domainkey` names, so they **don't affect the Microsoft 365 email** on the main domain. Leave the existing MX/SPF/DKIM/DMARC records alone.
+3. Once Resend shows the domain as Verified, create an API key (Sending access) and add these in Vercel → Settings → Environment Variables (Production):
+   - `RESEND_API_KEY` = the key
+   - `EMAIL_FROM` = `Youth Sports Pathway <bookings@youthsportspathway.co.uk>` (the default)
+   - `NOTIFY_TO` = `info@youthsportspathway.co.uk` (the default)
+4. Redeploy. `/api/health` should show `"email":"resend"`.
+
+SMTP (`SMTP_*`, requires `npm install`) is supported as a fallback if Resend isn't used.
+
+## Booking form consents
+
+The Book Now (free taster) and membership forms collect:
+- **Emergency contact** name and telephone (required).
+- **Medical conditions, allergies or additional needs** (optional).
+- **Consent:**
+  - Required: parent/guardian permission to take part.
+  - Required: emergency first aid and medical treatment.
+  - Required: an explicit yes or no for photo and video use.
+  - Required: the privacy acknowledgement.
+  - Optional: marketing emails.
+
+All of these are stored with the booking (when a database is connected) and included in the email to YSP. A "NO" to photos is shown prominently.
