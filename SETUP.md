@@ -99,6 +99,23 @@ Setup:
 
 SMTP (`SMTP_*`, requires `npm install`) is supported as a fallback if Resend isn't used.
 
+## Book Now page
+
+`book.html` is the single booking page (the red **Book Now** menu button):
+- **Book a Free Taster:** the free taster request form.
+- **Join & Pay Monthly:** four membership plans (Grassroots or Development, 1 or 2 sessions a week). Choosing one opens the membership form with that plan selected.
+
+`taster.html` and `register.html` redirect here. Links can open a path directly:
+- `book.html?mode=taster&programme=grassroots&day=Monday`
+- `book.html?mode=join&membership=development-2`
+
+## One free taster per child
+
+Checked when a database is connected (in email-only mode there's no history to check):
+- **Refused:** the same child (name compared ignoring case, spacing and accents) with the same parent email **or** phone (`+44`/`07…` treated as the same number). The parent is told there's one free taster per child and offered the membership options.
+- **Allowed but flagged:** the same parent email or phone with a different child (likely a sibling), the same child name and age with different contact details, or a child who already has a membership registration. The email to info@ starts "⚠ Possible repeat", and the reason shows in the admin "Repeat check" column.
+- **Declined** taster requests don't count, so the family can rebook.
+
 ## Booking form consents
 
 The Book Now (free taster) and membership forms collect:

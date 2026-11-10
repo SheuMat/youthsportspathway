@@ -38,8 +38,8 @@
             regNote +
           '</div>' +
           '<div class="session-card-footer session-card-actions">' +
-            '<a href="book.html?programme=' + esc(p.id) + '" class="btn btn-outline-dark">Book a Free Taster</a>' +
-            '<a href="register.html?programme=' + esc(p.id) + '" class="btn btn-primary">Register</a>' +
+            '<a href="book.html?mode=taster&amp;programme=' + esc(p.id) + '" class="btn btn-outline-dark">Book a Free Taster</a>' +
+            '<a href="book.html?mode=join&amp;programme=' + esc(p.id) + '" class="btn btn-primary">Register</a>' +
           '</div>' +
         '</article>';
     }).join('');
@@ -54,7 +54,7 @@
         '<td data-label="Programme">' + esc(r.programme.name) + '</td>' +
         '<td data-label="Ages">' + esc(r.programme.ages) + '</td>' +
         '<td data-label="Venue">' + esc(Y.venue.short) + '</td>' +
-        '<td data-label="Book"><a href="book.html?programme=' + esc(r.programme.id) + '&amp;day=' + esc(r.session.day) + '" class="btn btn-primary" style="padding:6px 16px;font-size:0.8rem;">Free Taster</a></td>' +
+        '<td data-label="Book"><a href="book.html?mode=taster&amp;programme=' + esc(r.programme.id) + '&amp;day=' + esc(r.session.day) + '" class="btn btn-primary" style="padding:6px 16px;font-size:0.8rem;">Free Taster</a></td>' +
       '</tr>';
     }).join('');
   });

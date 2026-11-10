@@ -106,14 +106,41 @@ function createApp({ config, db, gc, notify, log = console, now = () => new Date
     const { c, v } = validate.taster(b, now().toISOString().slice(0, 10));
     if (!c.ok) return invalid(res, c);
     const reference = billingMod.newReference('YSPT');
+    const warnings = [];
     if (db) {
+      // One free taster per child. Exact repeat (same child + same parent email or phone) is refused;
+      // looser matches are allowed but flagged to YSP. Declined requests don't count.
+      const cKey = validate.childKey(v.childName);
+      const pKey = validate.phoneKey(v.parentPhone);
+      const email = v.parentEmail.toLowerCase();
+      const exact = await db.get(`SELECT reference FROM tasters WHERE child_key = ? AND (lower(parent_email) = ? OR parent_phone_key = ?)
+        AND status <> 'declined' ORDER BY id LIMIT 1`, cKey, email, pKey);
+      if (exact) {
+        return send(res, 409, {
+          error: `Our records show ${v.childName} has already booked a free taster (reference ${exact.reference}). There's one free taster per child — you can join as a member below, or contact us if you think this is a mistake.`,
+          code: 'taster_already_used', reference: exact.reference
+        });
+      }
+      const similar = await db.all(`SELECT reference, child_name, child_age, parent_email, preferred_date, status FROM tasters
+        WHERE status <> 'declined' AND (lower(parent_email) = ? OR parent_phone_key = ? OR (child_key = ? AND child_age BETWEEN ? AND ?))
+        ORDER BY id DESC LIMIT 10`, email, pKey, cKey, v.childAge - 1, v.childAge + 1);
+      for (const s of similar) {
+        const sameChild = validate.childKey(s.child_name) === cKey;
+        warnings.push(sameChild
+          ? `Same child name and age as ${s.reference} (${s.child_name}, ${s.child_age}, booked by ${s.parent_email} for ${s.preferred_date}, ${s.status}) but different contact details.`
+          : `Same parent email or phone as ${s.reference} (${s.child_name}, ${s.child_age}, ${s.preferred_date}, ${s.status}) — possibly a sibling.`);
+      }
+      const member = await db.get(`SELECT reference, membership_id, registration_status FROM registrations
+        WHERE lower(parent_email) = ? AND lower(child_name) = lower(?) AND registration_status NOT IN ('rejected', 'cancelled') LIMIT 1`, email, v.childName);
+      if (member) warnings.push(`This child already has a membership registration (${member.reference}, ${member.membership_id}, ${member.registration_status.replace(/_/g, ' ')}).`);
+
       const r = await db.run(`INSERT INTO tasters (reference, programme_id, day, preferred_date, parent_name, parent_email, parent_phone, child_name, child_age, notes, marketing_consent,
-        emergency_name, emergency_phone, medical_info, consent_participation, consent_medical, consent_photo)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING id`, reference, v.programmeId, v.day, v.preferredDate, v.parentName, v.parentEmail, v.parentPhone, v.childName, v.childAge, v.notes, v.marketingConsent ? 1 : 0,
-        v.emergencyName, v.emergencyPhone, v.medicalInfo, 1, 1, v.photoConsent);
-      await db.audit('taster', Number(r.rows[0].id), 'created', 'requested');
+        emergency_name, emergency_phone, medical_info, consent_participation, consent_medical, consent_photo, child_key, parent_phone_key, repeat_flag)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING id`, reference, v.programmeId, v.day, v.preferredDate, v.parentName, v.parentEmail, v.parentPhone, v.childName, v.childAge, v.notes, v.marketingConsent ? 1 : 0,
+        v.emergencyName, v.emergencyPhone, v.medicalInfo, 1, 1, v.photoConsent, cKey, pKey, warnings.length ? warnings.join(' | ') : null);
+      await db.audit('taster', Number(r.rows[0].id), 'created', warnings.length ? 'requested (possible repeat)' : 'requested');
     }
-    const toYsp = emails.tasterToYsp(v, reference);
+    const toYsp = emails.tasterToYsp(v, reference, warnings);
     const delivered = await notify.toYsp(toYsp.subject, toYsp.text, v.parentEmail);
     if (emailOnly && !delivered) return send(res, 503, { error: UNAVAILABLE });
     const ack = emails.tasterToParent(v, reference);

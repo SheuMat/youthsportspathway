@@ -69,7 +69,7 @@ CREATE TABLE IF NOT EXISTS audit_log (
 
 // Columns added after the first release. Applied to existing databases on start-up.
 const ADDED_COLUMNS = {
-  tasters: ['emergency_name TEXT', 'emergency_phone TEXT', 'medical_info TEXT', 'consent_participation INTEGER NOT NULL DEFAULT 0', 'consent_medical INTEGER NOT NULL DEFAULT 0', 'consent_photo TEXT'],
+  tasters: ['emergency_name TEXT', 'emergency_phone TEXT', 'medical_info TEXT', 'consent_participation INTEGER NOT NULL DEFAULT 0', 'consent_medical INTEGER NOT NULL DEFAULT 0', 'consent_photo TEXT', 'child_key TEXT', 'parent_phone_key TEXT', 'repeat_flag TEXT'],
   registrations: ['emergency_name TEXT', 'emergency_phone TEXT', 'medical_info TEXT', 'consent_participation INTEGER NOT NULL DEFAULT 0', 'consent_medical INTEGER NOT NULL DEFAULT 0', 'consent_photo TEXT']
 };
 

@@ -433,3 +433,47 @@ describe('migration', () => {
     for (const c of ['emergency_name', 'emergency_phone', 'medical_info', 'consent_participation', 'consent_medical', 'consent_photo']) assert.ok(cols.includes(c), c);
   });
 });
+
+describe('one free taster per child', () => {
+  let s;
+  before(async () => { s = await startServer(); });
+  after(async () => { s.server.close(); await s.db.close(); });
+  const t = (o) => ({ ...parent, programmeId: 'grassroots', day: 'Monday', preferredDate: '2026-11-16', childName: 'Riley Smith', childAge: 8, ...o });
+  const lastYspMail = () => [...s.app.notify.sent].reverse().find((m) => m.to === 'info@youthsportspathway.co.uk');
+
+  test('first booking is accepted without a warning', async () => {
+    const r = await postJson(s.base, '/api/tasters', t());
+    assert.equal(r.status, 201);
+    assert.doesNotMatch(lastYspMail().subject, /Possible repeat/);
+  });
+  test('same child + same email is refused, even with different case/spacing and another day', async () => {
+    const r = await postJson(s.base, '/api/tasters', t({ childName: '  riley   SMITH ', parentEmail: 'SAM@example.com', day: 'Friday', preferredDate: '2026-11-20' }));
+    assert.equal(r.status, 409);
+    assert.equal(r.body.code, 'taster_already_used');
+    assert.match(r.body.error, /one free taster per child/);
+  });
+  test('same child + same phone in +44 format is refused', async () => {
+    const r = await postJson(s.base, '/api/tasters', t({ parentEmail: 'other@example.com', parentPhone: '+44 7700 900123' }));
+    assert.equal(r.status, 409);
+  });
+  test('a sibling (same parent, different child) is allowed but flagged', async () => {
+    const r = await postJson(s.base, '/api/tasters', t({ childName: 'Alex Smith', childAge: 6 }));
+    assert.equal(r.status, 201);
+    const m = lastYspMail();
+    assert.match(m.subject, /^⚠ Possible repeat/);
+    assert.match(m.text, /possibly a sibling/);
+    const row = await s.db.get('SELECT repeat_flag FROM tasters WHERE reference = ?', r.body.reference);
+    assert.match(row.repeat_flag, /sibling/);
+  });
+  test('same child name and age with new contact details is allowed but flagged', async () => {
+    const r = await postJson(s.base, '/api/tasters', t({ parentEmail: 'new@example.com', parentPhone: '07123 456789' }));
+    assert.equal(r.status, 201);
+    assert.match(lastYspMail().text, /Same child name and age/);
+  });
+  test('a declined request does not use up the free taster', async () => {
+    const first = await postJson(s.base, '/api/tasters', t({ childName: 'Casey Jones', parentEmail: 'casey@example.com', parentPhone: '07000 111222' }));
+    await s.db.run("UPDATE tasters SET status = 'declined' WHERE reference = ?", first.body.reference);
+    const again = await postJson(s.base, '/api/tasters', t({ childName: 'Casey Jones', parentEmail: 'casey@example.com', parentPhone: '07000 111222' }));
+    assert.equal(again.status, 201);
+  });
+});
