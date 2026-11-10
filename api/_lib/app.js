@@ -25,7 +25,7 @@ const SECURITY_HEADERS = {
 };
 
 function createApp({ config, db, gc, notify, log = console, now = () => new Date() }) {
-  db = db || dbMod.open(config.databasePath);
+  db = db || dbMod.open(config.databaseUrl || config.databasePath);
   notify = notify || notifyMod.create(config.smtp, log);
   if (gc === undefined) gc = config.gocardless.enabled ? gocardless.client(config.gocardless) : null;
   const billing = billingMod.create({ db, config, gc, notify, log });
@@ -37,6 +37,13 @@ function createApp({ config, db, gc, notify, log = console, now = () => new Date
     res.end(isJson ? JSON.stringify(body) : body);
   }
   function readBody(req, limit) {
+    // Some hosts hand over an already-buffered body.
+    const pre = req.rawBody;
+    if (Buffer.isBuffer(pre) || typeof pre === 'string') {
+      const buf = Buffer.isBuffer(pre) ? pre : Buffer.from(pre);
+      if (buf.length > limit) return Promise.reject(Object.assign(new Error('Request too large'), { status: 413 }));
+      return Promise.resolve(buf);
+    }
     return new Promise((resolve, reject) => {
       let size = 0; const chunks = [];
       req.on('data', (c) => { size += c.length; if (size > limit) { reject(Object.assign(new Error('Request too large'), { status: 413 })); req.destroy(); } else chunks.push(c); });
@@ -79,8 +86,8 @@ function createApp({ config, db, gc, notify, log = console, now = () => new Date
     const { c, v } = validate.enquiry(b);
     if (!c.ok) return invalid(res, c);
     const reference = billingMod.newReference('YSPE');
-    db.prepare('INSERT INTO enquiries (reference, type, first_name, last_name, email, phone, message, marketing_consent) VALUES (?, ?, ?, ?, ?, ?, ?, ?)')
-      .run(reference, v.type, v.firstName, v.lastName, v.email, v.phone, v.message, v.marketingConsent ? 1 : 0);
+    await db.run('INSERT INTO enquiries (reference, type, first_name, last_name, email, phone, message, marketing_consent) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
+      reference, v.type, v.firstName, v.lastName, v.email, v.phone, v.message, v.marketingConsent ? 1 : 0);
     notify.toYsp(`New ${v.type} enquiry ${reference}`, `From: ${v.firstName} ${v.lastName} <${v.email}> ${v.phone}\nType: ${v.type}\nMarketing consent: ${v.marketingConsent ? 'yes' : 'no'}\n\n${v.message}`);
     send(res, 201, { ok: true, reference });
   }
@@ -91,9 +98,9 @@ function createApp({ config, db, gc, notify, log = console, now = () => new Date
     const { c, v } = validate.taster(b, now().toISOString().slice(0, 10));
     if (!c.ok) return invalid(res, c);
     const reference = billingMod.newReference('YSPT');
-    const r = db.prepare(`INSERT INTO tasters (reference, programme_id, day, preferred_date, parent_name, parent_email, parent_phone, child_name, child_age, notes, marketing_consent)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`).run(reference, v.programmeId, v.day, v.preferredDate, v.parentName, v.parentEmail, v.parentPhone, v.childName, v.childAge, v.notes, v.marketingConsent ? 1 : 0);
-    db.audit('taster', Number(r.lastInsertRowid), 'created', 'requested');
+    const r = await db.run(`INSERT INTO tasters (reference, programme_id, day, preferred_date, parent_name, parent_email, parent_phone, child_name, child_age, notes, marketing_consent)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING id`, reference, v.programmeId, v.day, v.preferredDate, v.parentName, v.parentEmail, v.parentPhone, v.childName, v.childAge, v.notes, v.marketingConsent ? 1 : 0);
+    await db.audit('taster', Number(r.rows[0].id), 'created', 'requested');
     const p = validate.YSP.getProgramme(v.programmeId);
     notify.toYsp(`Taster request ${reference}: ${p.name} ${v.day} ${v.preferredDate}`,
       `Child: ${v.childName} (${v.childAge})\nParent: ${v.parentName}, ${v.parentEmail}, ${v.parentPhone}\nProgramme: ${p.name}\nDay/date: ${v.day} ${v.preferredDate}\nNotes: ${v.notes || '-'}\nMarketing consent: ${v.marketingConsent ? 'yes' : 'no'}\n\nConfirm or decline in the admin page.`);
@@ -130,23 +137,24 @@ function createApp({ config, db, gc, notify, log = console, now = () => new Date
     const p = url.pathname;
     if (req.method === 'GET' && p === '/api/admin/overview') {
       return send(res, 200, {
+        database: db.kind,
         gocardless: { enabled: config.gocardless.enabled, environment: config.gocardless.environment, problems: config.gocardless.problems },
         billing: config.billing,
         emailConfigured: notify.configured,
-        enquiries: db.prepare('SELECT * FROM enquiries ORDER BY id DESC LIMIT 200').all(),
-        tasters: db.prepare('SELECT * FROM tasters ORDER BY id DESC LIMIT 200').all(),
-        registrations: db.prepare('SELECT id, reference, membership_id, programme_id, days, amount_pence, parent_name, parent_email, parent_phone, child_name, child_age, notes, marketing_consent, existing_direct_debit, registration_status, mandate_status, subscription_status, payment_status, gc_mandate_id, gc_subscription_id, created_at, updated_at FROM registrations ORDER BY id DESC LIMIT 500').all(),
-        payments: db.prepare('SELECT * FROM payments ORDER BY updated_at DESC LIMIT 200').all()
+        enquiries: await db.all('SELECT * FROM enquiries ORDER BY id DESC LIMIT 200'),
+        tasters: await db.all('SELECT * FROM tasters ORDER BY id DESC LIMIT 200'),
+        registrations: await db.all('SELECT id, reference, membership_id, programme_id, days, amount_pence, parent_name, parent_email, parent_phone, child_name, child_age, notes, marketing_consent, existing_direct_debit, registration_status, mandate_status, subscription_status, payment_status, gc_mandate_id, gc_subscription_id, created_at, updated_at FROM registrations ORDER BY id DESC LIMIT 500'),
+        payments: await db.all('SELECT * FROM payments ORDER BY updated_at DESC LIMIT 200')
       });
     }
     let m;
     if (req.method === 'POST' && (m = /^\/api\/admin\/tasters\/(\d+)$/.exec(p))) {
       const b = await readJson(req);
       if (!['requested', 'confirmed', 'declined', 'attended', 'no_show'].includes(b.status)) return send(res, 422, { error: 'Invalid status' });
-      const t = db.prepare('SELECT * FROM tasters WHERE id = ?').get(Number(m[1]));
+      const t = await db.get('SELECT * FROM tasters WHERE id = ?', Number(m[1]));
       if (!t) return send(res, 404, { error: 'Not found' });
-      db.prepare("UPDATE tasters SET status = ?, updated_at = datetime('now') WHERE id = ?").run(b.status, t.id);
-      db.audit('taster', t.id, `status_${b.status}`);
+      await db.run('UPDATE tasters SET status = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?', b.status, t.id);
+      await db.audit('taster', t.id, `status_${b.status}`);
       if (b.notifyParent && (b.status === 'confirmed' || b.status === 'declined')) {
         const prog = validate.YSP.getProgramme(t.programme_id);
         notify.toParent(t.parent_email, `Your YSP free taster (${t.reference})`, b.status === 'confirmed'
@@ -160,8 +168,8 @@ function createApp({ config, db, gc, notify, log = console, now = () => new Date
       if (m[2] === 'status') {
         const b = await readJson(req);
         if (!['submitted', 'awaiting_operational_approval', 'existing_customer_review', 'rejected', 'cancelled'].includes(b.status)) return send(res, 422, { error: 'Invalid status' });
-        db.prepare("UPDATE registrations SET registration_status = ?, updated_at = datetime('now') WHERE id = ?").run(b.status, id);
-        db.audit('registration', id, `admin_status_${b.status}`);
+        await db.run('UPDATE registrations SET registration_status = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?', b.status, id);
+        await db.audit('registration', id, `admin_status_${b.status}`);
         return send(res, 200, { ok: true });
       }
       if (!gc) return send(res, 503, { error: 'GoCardless is not configured' });
@@ -198,9 +206,9 @@ function createApp({ config, db, gc, notify, log = console, now = () => new Date
       if (url.pathname.startsWith('/api/')) {
         if (url.pathname === '/api/webhooks/gocardless' && req.method === 'POST') return await postWebhook(req, res);
         if (url.pathname.startsWith('/api/admin/')) return await admin(req, res, url);
-        if (url.pathname === '/api/health') return send(res, 200, { ok: true, gocardless: config.gocardless.enabled ? config.gocardless.environment : 'disabled' });
+        if (url.pathname === '/api/health') return send(res, 200, { ok: true, database: db.kind, gocardless: config.gocardless.enabled ? config.gocardless.environment : 'disabled', email: notify.configured, admin: Boolean(config.adminToken) });
         if (url.pathname === '/api/registrations/status' && req.method === 'GET') {
-          const s = billing.publicStatus(String(url.searchParams.get('ref') || '').slice(0, 64));
+          const s = await billing.publicStatus(String(url.searchParams.get('ref') || '').slice(0, 64));
           return s ? send(res, 200, s) : send(res, 404, { error: 'Not found' });
         }
         const routes = { '/api/enquiries': postEnquiry, '/api/tasters': postTaster, '/api/registrations': postRegistration };

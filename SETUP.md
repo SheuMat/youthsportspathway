@@ -1,6 +1,6 @@
 # YSP website: setup and operations
 
-The site is still plain HTML/CSS/JS. A small Node.js server (`server/`) now serves those pages and handles the forms, the free taster requests, membership registration and GoCardless. The site has no build step and no framework.
+The site is still plain HTML/CSS/JS. The forms, free taster requests, membership registration and GoCardless are handled by a small Node.js backend in `api/`. On Vercel it runs as a serverless function (`api/handler.js`, with shared code in `api/_lib/`). Locally, `server/index.js` serves the pages and the same API. The site has no build step and no framework.
 
 ## Run locally
 
@@ -12,11 +12,24 @@ npm test                  # automated tests (uses a mock GoCardless API)
 npm run check             # static checks: links, headings, banned claims, secrets
 ```
 
-Requires Node.js 22.13 or later. Data is stored in SQLite at `DATABASE_PATH` (default `data/ysp.sqlite`). Back this file up.
+Requires Node.js 22.13 or later. Locally, data is stored in SQLite at `DATABASE_PATH` (default `data/ysp.sqlite`). On Vercel it is stored in Postgres (`DATABASE_URL`); Neon includes point-in-time backups.
 
-## Hosting
+## Hosting (Vercel)
 
-The forms need this server running. **A static-only host (GitHub Pages, plain Netlify) cannot run it**, and on one the forms show an error asking people to email instead. Use a Node host with a persistent disk (Render, Railway, Fly.io, or a small VPS), set the environment variables there, and point `youthsportspathway.com` at it over HTTPS.
+The site is deployed by Vercel from `main`. Vercel serves static pages directly and rewrites `/api/*` to `api/handler.js` (see `vercel.json`). Vercel has no persistent disk, so **the live site needs a Postgres database.** Until `DATABASE_URL` is set, the forms show "Online forms are temporarily unavailable — please email…".
+
+One-time setup in the Vercel dashboard (project **youthsportspathway**):
+
+1. **Storage → Create Database → Neon (Postgres)**, free plan, region London (or nearest). Connect it to the project for Production and Preview. This sets `DATABASE_URL`. Tables are created automatically on first use.
+2. **Settings → Environment Variables** (Production; Preview too if you want to test there):
+   - `ADMIN_TOKEN`: a long random string (`openssl rand -hex 24`).
+   - `PUBLIC_BASE_URL`: `https://www.youthsportspathway.com`
+   - Optional email: `SMTP_HOST=smtp.gmail.com`, `SMTP_PORT=465`, `SMTP_USER=youthsportspathway@gmail.com`, `SMTP_PASS=<Gmail App Password>`.
+   - GoCardless sandbox (when ready): `GOCARDLESS_ENVIRONMENT=sandbox`, `GOCARDLESS_ACCESS_TOKEN`, `GOCARDLESS_WEBHOOK_SECRET`.
+3. **Deployments → Redeploy** the latest production deployment so the variables take effect.
+4. Check `https://www.youthsportspathway.com/api/health`. It should show `"database":"postgres"`.
+
+Locally, the same code uses SQLite (`DATABASE_PATH`) unless `DATABASE_URL` is set. To run the tests against Postgres: `TEST_DATABASE_URL=postgres://user@host:port/postgres npm test`.
 
 ## Where things are configured
 
@@ -43,7 +56,7 @@ If email isn't configured, nothing is emailed. Check this page for new submissio
 The integration uses GoCardless Billing Requests with the hosted Billing Request Flow. Parents enter their bank details on GoCardless's own page, so YSP never handles them.
 
 1. In the GoCardless **sandbox** dashboard (manage-sandbox.gocardless.com), go to Developers → Create → Access token (read-write). Put it in `GOCARDLESS_ACCESS_TOKEN`; it starts with `sandbox_`.
-2. Go to Developers → Create → Webhook endpoint, with URL `https://<your-domain>/api/webhooks/gocardless`. Copy its secret into `GOCARDLESS_WEBHOOK_SECRET`.
+2. Go to Developers → Create → Webhook endpoint, with URL `https://www.youthsportspathway.com/api/webhooks/gocardless`. Copy its secret into `GOCARDLESS_WEBHOOK_SECRET`.
 3. Set `PUBLIC_BASE_URL` to the site's public HTTPS URL; it is used for the redirect back to `register-complete.html`.
 4. Test using the sandbox's test bank details. Check that the webhooks update the admin page.
 5. **Go-live, only with the owner's explicit approval:** create live credentials, then set `GOCARDLESS_ENVIRONMENT=live`, `GOCARDLESS_LIVE_APPROVED=true` and the live token and secret. The server refuses live mode without the approval flag, and refuses a mismatched sandbox or live token.

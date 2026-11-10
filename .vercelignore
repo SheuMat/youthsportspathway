@@ -1,4 +1,4 @@
-# Not part of the public static site
+# Not part of the deployed site (api/ is deployed as serverless functions)
 server/
 tests/
 scripts/

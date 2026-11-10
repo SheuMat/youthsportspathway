@@ -9,27 +9,31 @@ function newReference(prefix) {
 }
 
 function create({ db, config, gc, notify, log = console }) {
-  const byId = (id) => db.prepare('SELECT * FROM registrations WHERE id = ?').get(id);
-  const by = (col, val) => db.prepare(`SELECT * FROM registrations WHERE ${col} = ?`).get(val);
+  const COLS = ['id', 'public_token', 'gc_billing_request_id', 'gc_mandate_id', 'gc_subscription_id'];
+  const byId = (id) => db.get('SELECT * FROM registrations WHERE id = ?', id);
+  const by = (col, val) => {
+    if (!COLS.includes(col)) throw new Error('bad column');
+    return val ? db.get(`SELECT * FROM registrations WHERE ${col} = ?`, val) : Promise.resolve(undefined);
+  };
 
-  function update(id, fields, why) {
+  async function update(id, fields, why) {
     const keys = Object.keys(fields);
     if (!keys.length) return;
-    db.prepare(`UPDATE registrations SET ${keys.map((k) => `${k} = ?`).join(', ')}, updated_at = datetime('now') WHERE id = ?`)
-      .run(...keys.map((k) => fields[k]), id);
-    db.audit('registration', id, why || 'update', JSON.stringify(fields));
+    await db.run(`UPDATE registrations SET ${keys.map((k) => `${k} = ?`).join(', ')}, updated_at = CURRENT_TIMESTAMP WHERE id = ?`,
+      ...keys.map((k) => fields[k]), id);
+    await db.audit('registration', id, why || 'update', JSON.stringify(fields));
   }
 
   function findDuplicate(v) {
-    return db.prepare(`SELECT reference FROM registrations
+    return db.get(`SELECT reference FROM registrations
       WHERE lower(parent_email) = lower(?) AND lower(child_name) = lower(?) AND programme_id = ?
-      AND registration_status IN ('submitted','awaiting_operational_approval','existing_customer_review','awaiting_direct_debit','active')`)
-      .get(v.parentEmail, v.childName, v.programme.id);
+      AND registration_status IN ('submitted','awaiting_operational_approval','existing_customer_review','awaiting_direct_debit','active')`,
+      v.parentEmail, v.childName, v.programme.id);
   }
 
   /** Create a registration. Returns { status, reference, message, authorisationUrl? } */
   async function register(v) {
-    const dup = findDuplicate(v);
+    const dup = await findDuplicate(v);
     if (dup) {
       const e = new Error(`We already have a registration for ${v.childName} in ${v.programme.name} (reference ${dup.reference}). Please contact us if you need to change it.`);
       e.status = 409; throw e;
@@ -48,13 +52,13 @@ function create({ db, config, gc, notify, log = console }) {
       status = 'submitted';
       message = 'Thanks — we\'ve received your registration. Online Direct Debit set-up isn\'t available just now, so we\'ll email you a secure link to complete it.';
     }
-    const r = db.prepare(`INSERT INTO registrations (reference, public_token, membership_id, programme_id, days, amount_pence,
+    const r = await db.run(`INSERT INTO registrations (reference, public_token, membership_id, programme_id, days, amount_pence,
       parent_name, parent_email, parent_phone, child_name, child_age, notes, marketing_consent, existing_direct_debit, registration_status)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`).run(
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING id`,
       reference, token, v.membership.id, v.programme.id, v.days.join(','), v.membership.amountPence,
       v.parentName, v.parentEmail, v.parentPhone, v.childName, v.childAge, v.notes, v.marketingConsent ? 1 : 0, v.existingDirectDebit ? 1 : 0, status);
-    const id = Number(r.lastInsertRowid);
-    db.audit('registration', id, 'created', status);
+    const id = Number(r.rows[0].id);
+    await db.audit('registration', id, 'created', status);
 
     const summary = `${v.membership.name} (£${v.membership.amountPence / 100}/month) — ${v.days.join(' and ')}`;
     notify.toYsp(`New registration ${reference}: ${v.programme.name}`,
@@ -76,17 +80,18 @@ function create({ db, config, gc, notify, log = console }) {
         exitUri: `${config.publicBaseUrl}/register.html?programme=${v.programme.id}`,
         customer: { given_name: given, family_name: rest.join(' ') || given, email: v.parentEmail }
       });
-      update(id, { gc_billing_request_id: br.id, mandate_status: 'pending_customer' }, 'billing_request_created');
+      await update(id, { gc_billing_request_id: br.id, mandate_status: 'pending_customer' }, 'billing_request_created');
       return { status, reference, authorisationUrl: flow.authorisation_url };
     } catch (err) {
       log.error(`[billing] GoCardless error for ${reference}: ${err.message}`);
-      update(id, { registration_status: 'submitted' }, 'gocardless_unavailable');
+      await update(id, { registration_status: 'submitted' }, 'gocardless_unavailable');
       return { status: 'submitted', reference, message: 'Thanks — we\'ve saved your registration, but couldn\'t open the Direct Debit page just now. We\'ll email you a secure link to complete it.' };
     }
   }
 
-  function publicStatus(token) {
-    const r = by('public_token', token);
+  async function publicStatus(token) {
+    if (!token) return null;
+    const r = await by('public_token', token);
     if (!r) return null;
     let headline = 'Registration Received';
     let message = 'We\'ve received your registration and will be in touch.';
@@ -103,7 +108,7 @@ function create({ db, config, gc, notify, log = console }) {
       headline = 'Membership Active';
       message = 'Your membership is active. Monthly payments will be collected by Direct Debit through GoCardless.';
     }
-    const YSP = require('../js/site-data.js');
+    const YSP = require('../../js/site-data.js');
     const m = YSP.getMembership(r.membership_id);
     return {
       reference: r.reference, headline, message,
@@ -115,14 +120,14 @@ function create({ db, config, gc, notify, log = console }) {
 
   /** Create the monthly subscription for a registration with an active mandate. Never creates a second one. */
   async function createSubscription(id) {
-    const r = byId(id);
+    const r = await byId(id);
     if (!r) throw Object.assign(new Error('Registration not found'), { status: 404 });
     if (r.gc_subscription_id) return { already: true, id: r.gc_subscription_id };
     if (!r.gc_mandate_id) throw Object.assign(new Error('No mandate for this registration yet'), { status: 409 });
     if (!['pending_submission', 'submitted', 'active'].includes(r.mandate_status)) {
       throw Object.assign(new Error(`Mandate is ${r.mandate_status}; cannot create subscription`), { status: 409 });
     }
-    const YSP = require('../js/site-data.js');
+    const YSP = require('../../js/site-data.js');
     const m = YSP.getMembership(r.membership_id);
     const params = {
       amount: r.amount_pence, currency: 'GBP', interval_unit: 'monthly',
@@ -132,15 +137,15 @@ function create({ db, config, gc, notify, log = console }) {
     };
     if (config.billing.dayOfMonth !== null) params.day_of_month = config.billing.dayOfMonth;
     const sub = await gc.createSubscription(params, `ysp-sub-${r.reference}`);
-    update(id, { gc_subscription_id: sub.id, subscription_status: sub.status === 'active' ? 'active' : sub.status, registration_status: 'active' }, 'subscription_created');
+    await update(id, { gc_subscription_id: sub.id, subscription_status: sub.status === 'active' ? 'active' : sub.status, registration_status: 'active' }, 'subscription_created');
     return { id: sub.id };
   }
 
   async function cancelSubscription(id) {
-    const r = byId(id);
+    const r = await byId(id);
     if (!r || !r.gc_subscription_id) throw Object.assign(new Error('No subscription for this registration'), { status: 404 });
     const sub = await gc.cancelSubscription(r.gc_subscription_id);
-    update(id, { subscription_status: sub.status || 'cancelled', registration_status: 'cancelled' }, 'subscription_cancelled_by_admin');
+    await update(id, { subscription_status: sub.status || 'cancelled', registration_status: 'cancelled' }, 'subscription_cancelled_by_admin');
     return { status: sub.status };
   }
 
@@ -151,7 +156,7 @@ function create({ db, config, gc, notify, log = console }) {
     if (!s) return;
     const fields = { mandate_status: s };
     if (['failed', 'cancelled', 'expired'].includes(s) && r.registration_status === 'awaiting_direct_debit') fields.registration_status = 'submitted';
-    update(r.id, fields, `mandate_${status}`);
+    await update(r.id, fields, `mandate_${status}`);
     if (['failed', 'cancelled', 'expired'].includes(s)) {
       notify.toYsp(`Direct Debit ${s}: ${r.reference}`, `Mandate for ${r.child_name} (${r.membership_id}) is ${s}. Parent: ${r.parent_name} ${r.parent_email}. Cause: ${(event.details && event.details.cause) || '-'}`);
     }
@@ -165,7 +170,7 @@ function create({ db, config, gc, notify, log = console }) {
     switch (ev.resource_type) {
       case 'billing_requests': {
         if (ev.action !== 'fulfilled') return;
-        const r = by('gc_billing_request_id', links.billing_request);
+        const r = await by('gc_billing_request_id', links.billing_request);
         if (!r) return;
         let mandateId = links.mandate_request_mandate;
         let customerId = links.customer;
@@ -177,40 +182,40 @@ function create({ db, config, gc, notify, log = console }) {
         if (!mandateId) return;
         const fields = { gc_mandate_id: mandateId, gc_customer_id: customerId || r.gc_customer_id };
         if (r.mandate_status === 'pending_customer') fields.mandate_status = 'pending_submission';
-        update(r.id, fields, 'billing_request_fulfilled');
+        await update(r.id, fields, 'billing_request_fulfilled');
         notify.toParent(r.parent_email, `Direct Debit received (${r.reference})`,
           `Hi ${r.parent_name},\n\nThanks — your Direct Debit instruction for ${r.child_name}'s YSP membership has been received. No payment has been taken yet. We'll confirm your start date and first collection date before anything is collected.\n\nReference: ${r.reference}\n\nYouth Sports Pathway`);
         const mandate = await gc.getMandate(mandateId).catch(() => null);
-        if (mandate) await onMandateStatus(byId(r.id), mandate.status, ev);
+        if (mandate) await onMandateStatus(await byId(r.id), mandate.status, ev);
         return;
       }
       case 'mandates': {
-        const r = by('gc_mandate_id', links.mandate);
+        const r = await by('gc_mandate_id', links.mandate);
         if (!r) return;
-        if (ev.action === 'replaced' && links.new_mandate) { update(r.id, { gc_mandate_id: links.new_mandate }, 'mandate_replaced'); return; }
+        if (ev.action === 'replaced' && links.new_mandate) { await update(r.id, { gc_mandate_id: links.new_mandate }, 'mandate_replaced'); return; }
         await onMandateStatus(r, ev.action, ev);
         return;
       }
       case 'subscriptions': {
-        const r = by('gc_subscription_id', links.subscription);
+        const r = await by('gc_subscription_id', links.subscription);
         if (!r) return;
         const map = { created: 'active', cancelled: 'cancelled', finished: 'finished', paused: 'paused', resumed: 'active' };
         if (!map[ev.action]) return;
         const fields = { subscription_status: map[ev.action] };
         if (ev.action === 'cancelled') fields.registration_status = 'cancelled';
-        update(r.id, fields, `subscription_${ev.action}`);
+        await update(r.id, fields, `subscription_${ev.action}`);
         if (ev.action === 'cancelled') notify.toYsp(`Subscription cancelled: ${r.reference}`, `Subscription for ${r.child_name} (${r.membership_id}) was cancelled. Cause: ${(ev.details && ev.details.cause) || '-'}`);
         return;
       }
       case 'payments': {
         const p = await gc.getPayment(links.payment);
         const pl = p.links || {};
-        const r = (pl.subscription && by('gc_subscription_id', pl.subscription)) || (pl.mandate && by('gc_mandate_id', pl.mandate));
-        db.prepare(`INSERT INTO payments (gc_payment_id, registration_id, amount_pence, charge_date, status) VALUES (?, ?, ?, ?, ?)
-          ON CONFLICT(gc_payment_id) DO UPDATE SET status = excluded.status, charge_date = excluded.charge_date, updated_at = datetime('now')`)
-          .run(p.id, r ? r.id : null, p.amount ?? null, p.charge_date ?? null, p.status);
+        const r = (await by('gc_subscription_id', pl.subscription)) || (await by('gc_mandate_id', pl.mandate));
+        await db.run(`INSERT INTO payments (gc_payment_id, registration_id, amount_pence, charge_date, status) VALUES (?, ?, ?, ?, ?)
+          ON CONFLICT(gc_payment_id) DO UPDATE SET status = excluded.status, charge_date = excluded.charge_date, updated_at = CURRENT_TIMESTAMP`,
+          p.id, r ? r.id : null, p.amount ?? null, p.charge_date ?? null, p.status);
         if (!r) return;
-        update(r.id, { payment_status: p.status }, `payment_${ev.action}`);
+        await update(r.id, { payment_status: p.status }, `payment_${ev.action}`);
         if (PAYMENT_FAILED.has(p.status)) {
           notify.toYsp(`Payment ${p.status}: ${r.reference}`, `Payment ${p.id} (£${(p.amount || 0) / 100}, ${p.charge_date}) for ${r.child_name} is ${p.status}. Parent: ${r.parent_name} ${r.parent_email} ${r.parent_phone}. Cause: ${(ev.details && ev.details.cause) || '-'}`);
         }
@@ -226,14 +231,14 @@ function create({ db, config, gc, notify, log = console }) {
     let processed = 0, duplicates = 0;
     for (const ev of events) {
       if (!ev || typeof ev.id !== 'string') continue;
-      const ins = db.prepare('INSERT OR IGNORE INTO webhook_events (gc_event_id, resource_type, action) VALUES (?, ?, ?)').run(ev.id, ev.resource_type || null, ev.action || null);
+      const ins = await db.run('INSERT INTO webhook_events (gc_event_id, resource_type, action) VALUES (?, ?, ?) ON CONFLICT (gc_event_id) DO NOTHING', ev.id, ev.resource_type || null, ev.action || null);
       if (ins.changes === 0) { duplicates++; continue; }
       try {
         await handleEvent(ev);
         processed++;
       } catch (err) {
         // Allow GoCardless to retry this event later.
-        db.prepare('DELETE FROM webhook_events WHERE gc_event_id = ?').run(ev.id);
+        await db.run('DELETE FROM webhook_events WHERE gc_event_id = ?', ev.id);
         throw err;
       }
     }

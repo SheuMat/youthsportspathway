@@ -1,5 +1,5 @@
 'use strict';
-const YSP = require('../js/site-data.js');
+const YSP = require('../../js/site-data.js');
 
 const EMAIL_RE = /^[^\s@<>]+@[^\s@<>]+\.[^\s@<>]{2,}$/;
 const PHONE_RE = /^[0-9+() -]{10,20}$/;

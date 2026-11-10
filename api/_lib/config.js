@@ -1,7 +1,7 @@
 'use strict';
 const path = require('node:path');
 
-const ROOT = path.resolve(__dirname, '..');
+const ROOT = path.resolve(__dirname, '..', '..');
 
 function load(env = process.env) {
   const gcEnv = (env.GOCARDLESS_ENVIRONMENT || 'sandbox').toLowerCase();
@@ -19,6 +19,7 @@ function load(env = process.env) {
     root: ROOT,
     port: Number(env.PORT) || 8000,
     publicBaseUrl: (env.PUBLIC_BASE_URL || 'http://localhost:8000').replace(/\/+$/, ''),
+    databaseUrl: env.DATABASE_URL || env.POSTGRES_URL || '',
     databasePath: env.DATABASE_PATH || path.join(ROOT, 'data', 'ysp.sqlite'),
     adminToken: env.ADMIN_TOKEN && env.ADMIN_TOKEN.length >= 24 ? env.ADMIN_TOKEN : '',
     gocardless: {
