@@ -34,7 +34,7 @@ module.exports = async (req, res) => {
     res.statusCode = 503;
     res.setHeader('Content-Type', 'application/json; charset=utf-8');
     res.setHeader('Cache-Control', 'no-store');
-    return res.end(JSON.stringify({ error: 'Online forms are temporarily unavailable. Please email youthsportspathway@gmail.com.' }));
+    return res.end(JSON.stringify({ error: 'Online forms are temporarily unavailable. Please email info@youthsportspathway.co.uk.' }));
   }
   return a.handler(req, res);
 };

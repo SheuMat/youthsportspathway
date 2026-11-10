@@ -67,7 +67,7 @@
   var testimonials = [];
 
   var contact = {
-    email: 'youthsportspathway@gmail.com',
+    email: 'info@youthsportspathway.co.uk',
     // Set to the verified WhatsApp community/group invite link when available.
     whatsappUrl: ''
   };

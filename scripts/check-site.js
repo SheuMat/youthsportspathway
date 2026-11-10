@@ -5,7 +5,7 @@ const path = require('node:path');
 const root = path.resolve(__dirname, '..');
 const pages = fs.readdirSync(root).filter((f) => f.endsWith('.html'));
 const BANNED = [/world-class/i, /premier\b/i, /most trusted/i, /fastest[- ]growing/i, /5★/, /#1\b/, /visionaries/i, /\belite\b/i, /\bpremium\b/i, /sheffield's (leading|best)/i,
-  /wednesday/i, /concord/i, /firth park/i, /all ages/i, /info@youthsportspathway/i, /\bcamps?\b/i, /YSP Games/i, /\bHAF\b/, /hall hire/i, /Coach Name/];
+  /wednesday/i, /concord/i, /firth park/i, /all ages/i, /youthsportspathway@gmail/i, /\bcamps?\b/i, /YSP Games/i, /\bHAF\b/, /hall hire/i, /Coach Name/];
 let problems = 0;
 const fail = (p, m) => { problems++; console.log(`✖ ${p}: ${m}`); };
 
