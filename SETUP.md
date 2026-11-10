@@ -38,7 +38,7 @@ Locally, the same code uses SQLite (`DATABASE_PATH`) unless `DATABASE_URL` is se
 | What | Where |
 |---|---|
 | Programmes, session days and times, venue, prices, membership products | `js/site-data.js`, used by the timetable, programme cards, forms and server |
-| Development Basketball paid-registration hold | `paidRegistrationOpen` in `js/site-data.js` |
+| Pause paid sign-ups for a programme (e.g. while sessions are being arranged) | set `paidRegistrationOpen: false` for it in `js/site-data.js`; both programmes are currently open |
 | Partners / testimonials (currently empty) | `partners` / `testimonials` arrays in `js/site-data.js` |
 | WhatsApp invite link (currently none) | `contact.whatsappUrl` in `js/site-data.js` |
 | Secrets, GoCardless mode, billing switches | environment variables (`.env.example`) |

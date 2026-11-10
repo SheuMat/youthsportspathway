@@ -199,13 +199,23 @@ describe('server', () => {
     assert.equal(r.status, 422);
   });
 
-  test('registration: Development is held for operational approval with no Direct Debit', async () => {
-    const before = s.mock.calls.length;
+  test('registration: Development now goes to secure Direct Debit like Grassroots', async () => {
     const r = await postJson(s.base, '/api/registrations', reg({ programmeId: 'development', membershipId: 'development-2', days: ['Thursday', 'Friday'], childAge: 13, childName: 'Dev Kid' }));
     assert.equal(r.status, 201);
-    assert.equal(r.body.status, 'awaiting_operational_approval');
-    assert.equal(r.body.authorisationUrl, undefined);
-    assert.equal(s.mock.calls.length, before);
+    assert.equal(r.body.status, 'awaiting_direct_debit');
+    assert.match(r.body.authorisationUrl, /^https:\/\/pay-sandbox\.gocardless\.com\//);
+  });
+
+  test('registration: a programme put on hold is saved without a Direct Debit', async () => {
+    const dev = YSP.getProgramme('development');
+    dev.paidRegistrationOpen = false;
+    try {
+      const before = s.mock.calls.length;
+      const r = await postJson(s.base, '/api/registrations', reg({ programmeId: 'development', membershipId: 'development-1', days: ['Thursday'], childAge: 12, childName: 'Held Kid' }));
+      assert.equal(r.body.status, 'awaiting_operational_approval');
+      assert.equal(r.body.authorisationUrl, undefined);
+      assert.equal(s.mock.calls.length, before);
+    } finally { dev.paidRegistrationOpen = true; }
   });
 
   test('registration: existing Direct Debit customers are not sent to GoCardless', async () => {
@@ -219,9 +229,9 @@ describe('server', () => {
     const r = await postJson(s.base, '/api/registrations', reg());
     assert.equal(r.status, 201);
     assert.match(r.body.authorisationUrl, /^https:\/\/pay-sandbox\.gocardless\.com\//);
-    const brCall = s.mock.calls.find((c) => c.path === '/billing_requests');
+    const brCall = s.mock.calls.filter((c) => c.path === '/billing_requests').at(-1);
     assert.deepEqual(brCall.body.billing_requests.mandate_request, { scheme: 'bacs', currency: 'GBP', description: 'YSP Grassroots: One Weekly Session' });
-    const flow = s.mock.calls.find((c) => c.path === '/billing_request_flows');
+    const flow = s.mock.calls.filter((c) => c.path === '/billing_request_flows').at(-1);
     assert.match(flow.body.billing_request_flows.redirect_uri, /^https:\/\/example\.test\/register-complete\.html\?ref=/);
 
     const row = (await s.db.get("SELECT * FROM registrations WHERE child_name = 'Alex Parent'"));
