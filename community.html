@@ -3,6 +3,7 @@
 <head>
   <meta charset="UTF-8" /><meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Join Our Community | Youth Sports Pathway</title>
+  <meta name="description" content="Stay connected with Youth Sports Pathway — session updates and news for YSP families in Sheffield." />
   <link rel="stylesheet" href="css/style.css" />
   <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;600;700;800;900&family=Barlow:wght@400;500;600;700&display=swap" rel="stylesheet" />
 </head>
@@ -35,7 +36,7 @@
     <div class="container">
       <span class="eyebrow">Stay Connected</span>
       <h1>Join Our Community</h1>
-      <p>Get session updates, camp dates, player news and exclusive content. Be part of the YSP family.</p>
+      <p>Get session updates and YSP news. Be part of the YSP family.</p>
     </div>
   </section>
 
@@ -45,31 +46,30 @@
         <div class="community-option">
           <div class="community-option-icon">💬</div>
           <h3>Join Our WhatsApp Community</h3>
-          <p>The fastest way to stay up to date. Get session reminders, camp announcements, last-minute changes and exclusive community content delivered straight to your phone.</p>
+          <p>The fastest way to stay up to date. Get session reminders, announcements and last-minute changes straight to your phone.</p>
           <ul style="text-align:left;margin:0 auto 28px;max-width:320px;display:flex;flex-direction:column;gap:10px;">
             <li style="display:flex;align-items:center;gap:10px;font-size:0.9rem;"><span style="color:var(--red);">✓</span> Instant session updates</li>
-            <li style="display:flex;align-items:center;gap:10px;font-size:0.9rem;"><span style="color:var(--red);">✓</span> Early access to camp bookings</li>
             <li style="display:flex;align-items:center;gap:10px;font-size:0.9rem;"><span style="color:var(--red);">✓</span> Community photos and highlights</li>
             <li style="display:flex;align-items:center;gap:10px;font-size:0.9rem;"><span style="color:var(--red);">✓</span> Direct contact with coaches</li>
           </ul>
-          <a href="#" class="btn btn-primary" style="background:#25D366;border-color:#25D366;">Join WhatsApp Group</a>
+          <a href="mailto:youthsportspathway@gmail.com?subject=WhatsApp%20group" class="btn btn-primary" data-ysp="whatsapp" style="background:#25D366;border-color:#25D366;">Ask to Join Our WhatsApp Group</a>
         </div>
         <div class="community-option">
           <div class="community-option-icon">📧</div>
           <h3>Email Newsletter</h3>
-          <p>Monthly updates on YSP news, programme launches, success stories and upcoming events. No spam — just the good stuff.</p>
+          <p>Occasional updates on YSP news and programmes. You can unsubscribe at any time.</p>
           <form id="email-form" style="text-align:left;margin-top:8px;">
             <div class="form-group">
               <label for="email-name">Your Name</label>
-              <input type="text" id="email-name" placeholder="First name" required />
+              <input type="text" id="email-name" name="firstName" placeholder="First name" required maxlength="100" />
             </div>
             <div class="form-group">
               <label for="email-address">Email Address</label>
-              <input type="email" id="email-address" placeholder="your@email.com" required />
+              <input type="email" id="email-address" name="email" placeholder="your@email.com" required maxlength="200" />
             </div>
             <div class="form-group">
               <label for="email-type">I am a…</label>
-              <select id="email-type">
+              <select id="email-type" name="role">
                 <option value="">Select one</option>
                 <option>Parent / Guardian</option>
                 <option>Young Athlete</option>
@@ -78,6 +78,11 @@
                 <option>Other</option>
               </select>
             </div>
+            <div class="form-group">
+              <label class="form-check"><input type="checkbox" name="marketingConsent" required /> I'd like to receive YSP email updates. I can unsubscribe at any time. See our <a href="policies.html#privacy">privacy information</a>.</label>
+            </div>
+            <input type="text" name="website" class="hp-field" tabindex="-1" autocomplete="off" aria-hidden="true" />
+            <p class="form-status" role="status" aria-live="polite"></p>
             <button type="submit" class="btn btn-primary" style="width:100%;">Subscribe to Newsletter</button>
           </form>
         </div>
@@ -89,7 +94,7 @@
     <div class="container text-center">
       <span class="eyebrow">Follow Us</span>
       <h2>Find Us on Social Media</h2>
-      <p style="max-width:520px;margin:16px auto 48px;opacity:0.7;">See the best moments from our sessions, camps and competitions. Tag us in your YSP moments.</p>
+      <p style="max-width:520px;margin:16px auto 48px;opacity:0.7;">See moments from our sessions. Tag us in your YSP moments.</p>
       <div style="display:flex;gap:16px;justify-content:center;flex-wrap:wrap;">
         <a href="#" class="btn btn-outline" style="min-width:160px;">📸 Instagram</a>
         <a href="#" class="btn btn-outline" style="min-width:160px;">🎵 TikTok</a>
@@ -108,6 +113,9 @@
     </div>
     <div class="footer-bottom container"><p>© 2025 Youth Sports Pathway Ltd.</p><p><a href="policies.html">Privacy</a> · <a href="policies.html">Terms</a></p></div>
   </footer>
+  <script src="js/site-data.js"></script>
+  <script src="js/site.js"></script>
+  <script src="js/forms.js"></script>
   <script src="js/main.js"></script>
 </body>
 </html>

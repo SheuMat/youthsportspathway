@@ -3,6 +3,7 @@
 <head>
   <meta charset="UTF-8" /><meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Weekly Timetable | Youth Sports Pathway</title>
+  <meta name="description" content="YSP weekly basketball timetable at Ecclesfield School, Sheffield: Grassroots (5–10) Monday and Friday 5–6pm; Development (11–15) Thursday and Friday 6–7pm." />
   <link rel="stylesheet" href="css/style.css" />
   <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;600;700;800;900&family=Barlow:wght@400;500;600;700&display=swap" rel="stylesheet" />
 </head>
@@ -35,7 +36,7 @@
     <div class="container">
       <span class="eyebrow">Schedule</span>
       <h1>Weekly Timetable</h1>
-      <p>Find a session that works for you. All sessions run weekly during term time.</p>
+      <p>Four weekly basketball sessions, delivered year-round at Ecclesfield School, Sheffield S35 9WD.</p>
     </div>
   </section>
 
@@ -46,56 +47,43 @@
         <h2>Sessions This Week</h2>
       </div>
       <div style="overflow-x:auto;">
-        <table class="timetable-table">
+        <table class="timetable-table timetable-responsive">
           <thead>
             <tr>
               <th>Day</th>
               <th>Time</th>
-              <th>Session</th>
-              <th>Age Group</th>
+              <th>Programme</th>
+              <th>Ages</th>
               <th>Venue</th>
-              <th>Price</th>
               <th>Book</th>
             </tr>
           </thead>
-          <tbody>
-            <tr>
-              <td><strong>Monday</strong></td>
-              <td>5:00pm – 6:00pm</td>
-              <td>Grassroots Development</td>
-              <td>All ages</td>
-              <td>Ecclesfield School, S35 9WD</td>
-              <td>—</td>
-              <td><a href="contact.html" class="btn btn-primary" style="padding:6px 16px;font-size:0.8rem;">Book</a></td>
-            </tr>
-            <tr>
-              <td><strong>Friday</strong></td>
-              <td>5:00pm – 6:00pm</td>
-              <td>Grassroots Development</td>
-              <td>All ages</td>
-              <td>Ecclesfield School, S35 9WD</td>
-              <td>—</td>
-              <td><a href="contact.html" class="btn btn-primary" style="padding:6px 16px;font-size:0.8rem;">Book</a></td>
-            </tr>
-
+          <tbody data-ysp="timetable">
+            <tr><td colspan="6"><noscript>Monday 5–6pm Grassroots Basketball (5–10) · Thursday 6–7pm Development Basketball (11–15) · Friday 5–6pm Grassroots Basketball (5–10) · Friday 6–7pm Development Basketball (11–15). Ecclesfield School, Sheffield S35 9WD.</noscript></td></tr>
           </tbody>
         </table>
       </div>
 
-      <div style="margin-top:32px;padding:24px;background:#fff8f8;border-left:4px solid var(--red);border-radius:4px;">
+      <div style="margin-top:32px;padding:24px;background:var(--grey-lt);border-left:4px solid var(--red);border-radius:4px;">
+        <strong style="font-family:var(--font-head);text-transform:uppercase;letter-spacing:1px;font-size:0.85rem;">💷 Membership</strong>
+        <p style="margin-top:8px;font-size:0.9rem;" data-ysp="membership-summary">£30/month for one session weekly, or £50/month for both sessions within the selected programme.</p>
+        <p style="margin-top:8px;font-size:0.9rem;">Venue for all sessions: Ecclesfield School, Chapeltown Road, Sheffield S35 9WD. <a href="register.html" style="color:var(--red);font-weight:600;">Register for membership</a></p>
+      </div>
+
+      <div style="margin-top:16px;padding:24px;background:#fff8f8;border-left:4px solid var(--red);border-radius:4px;">
         <strong style="font-family:var(--font-head);text-transform:uppercase;letter-spacing:1px;font-size:0.85rem;">📅 Holiday Periods</strong>
-        <p style="margin-top:8px;font-size:0.9rem;">Sessions run during term time and may not run during school holidays. Join our <a href="community.html" style="color:var(--red);font-weight:600;">WhatsApp community</a> for updates.</p>
+        <p style="margin-top:8px;font-size:0.9rem;">Sessions run year-round. Any changes to the timetable will be shared with registered families. Join our <a href="community.html" style="color:var(--red);font-weight:600;">WhatsApp community</a> for updates.</p>
       </div>
     </div>
   </section>
 
   <section class="section bg-dark">
     <div class="container text-center">
-      <span class="eyebrow">Can't Find a Session?</span>
-      <h2>We're Always Growing</h2>
-      <p style="max-width:540px;margin:16px auto 40px;opacity:0.7;">New sessions are added regularly. Join our WhatsApp community to be first to know about new times and locations.</p>
+      <span class="eyebrow">Questions?</span>
+      <h2>Not Sure Which Session Suits?</h2>
+      <p style="max-width:540px;margin:16px auto 40px;opacity:0.7;">Book a free taster or get in touch and we'll help you choose.</p>
       <div class="cta-buttons">
-        <a href="community.html" class="btn btn-primary">Join WhatsApp Community</a>
+        <a href="taster.html" class="btn btn-primary">Book a Free Taster</a>
         <a href="contact.html" class="btn btn-outline">Contact Us</a>
       </div>
     </div>
@@ -110,6 +98,8 @@
     </div>
     <div class="footer-bottom container"><p>© 2025 Youth Sports Pathway Ltd.</p><p><a href="policies.html">Privacy</a> · <a href="policies.html">Terms</a></p></div>
   </footer>
+  <script src="js/site-data.js"></script>
+  <script src="js/site.js"></script>
   <script src="js/main.js"></script>
 </body>
 </html>
