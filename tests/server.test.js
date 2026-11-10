@@ -3,10 +3,10 @@ const { test, describe, before, after } = require('node:test');
 const assert = require('node:assert/strict');
 const http = require('node:http');
 const crypto = require('node:crypto');
-const { load } = require('../server/config');
-const { createApp } = require('../server/app');
-const gocardless = require('../server/gocardless');
-const dbMod = require('../server/db');
+const { load } = require('../api/_lib/config');
+const { createApp } = require('../api/_lib/app');
+const gocardless = require('../api/_lib/gocardless');
+const dbMod = require('../api/_lib/db');
 const YSP = require('../js/site-data.js');
 
 const SECRET = 'whsec_test_secret';
@@ -50,11 +50,23 @@ function mockGoCardless() {
   return { calls, state, fetchImpl };
 }
 
+// Set TEST_DATABASE_URL=postgres://... to run the suite against Postgres (a fresh database per server).
+async function freshDb() {
+  const base = process.env.TEST_DATABASE_URL;
+  if (!base) return dbMod.open(':memory:');
+  const { Client } = require('pg');
+  const name = 'ysp_test_' + crypto.randomBytes(4).toString('hex');
+  const c = new Client({ connectionString: base }); await c.connect();
+  await c.query(`CREATE DATABASE ${name}`); await c.end();
+  const u = new URL(base); u.pathname = '/' + name;
+  return dbMod.open(u.toString());
+}
+
 async function startServer(envOverrides = {}) {
   const config = load({ GOCARDLESS_ACCESS_TOKEN: 'sandbox_abc', GOCARDLESS_WEBHOOK_SECRET: SECRET, ADMIN_TOKEN: ADMIN, PUBLIC_BASE_URL: 'https://example.test', ...envOverrides });
   const mock = mockGoCardless();
   const gc = gocardless.client({ accessToken: config.gocardless.accessToken, apiBase: 'https://api-sandbox.gocardless.com' }, mock.fetchImpl);
-  const db = dbMod.open(':memory:');
+  const db = await freshDb();
   const app = createApp({ config, db, gc, log: quiet, now: () => new Date('2026-11-10T10:00:00Z') });
   const server = http.createServer(app.handler);
   await new Promise((r) => server.listen(0, '127.0.0.1', r));
@@ -115,7 +127,7 @@ describe('config safety', () => {
 describe('server', () => {
   let s;
   before(async () => { s = await startServer(); });
-  after(() => s.server.close());
+  after(async () => { s.server.close(); await s.db.close(); });
 
   test('serves pages but not server code, secrets or dotfiles', async () => {
     assert.equal((await fetch(s.base + '/')).status, 200);
@@ -131,7 +143,7 @@ describe('server', () => {
   test('enquiry: valid, invalid, wrong content type, honeypot', async () => {
     const ok = await postJson(s.base, '/api/enquiries', { type: 'school', firstName: 'A', lastName: 'B', email: 'a@b.co.uk', message: 'Hello', privacyAck: true });
     assert.equal(ok.status, 201);
-    assert.equal(s.db.prepare('SELECT count(*) n FROM enquiries').get().n, 1);
+    assert.equal((await s.db.get('SELECT CAST(count(*) AS INTEGER) n FROM enquiries')).n, 1);
     const bad = await postJson(s.base, '/api/enquiries', { type: 'school', firstName: 'A', lastName: 'B', email: 'nope', message: 'x', privacyAck: true });
     assert.equal(bad.status, 422); assert.ok(bad.body.fields.email);
     const noPrivacy = await postJson(s.base, '/api/enquiries', { type: 'general', firstName: 'A', lastName: 'B', email: 'a@b.com', message: 'x' });
@@ -140,7 +152,7 @@ describe('server', () => {
     assert.equal(txt.status, 415);
     const bot = await postJson(s.base, '/api/enquiries', { website: 'spam' });
     assert.equal(bot.status, 200);
-    assert.equal(s.db.prepare('SELECT count(*) n FROM enquiries').get().n, 1);
+    assert.equal((await s.db.get('SELECT CAST(count(*) AS INTEGER) n FROM enquiries')).n, 1);
     const xorigin = await postJson(s.base, '/api/enquiries', { type: 'general', firstName: 'A', lastName: 'B', email: 'a@b.com', message: 'x', privacyAck: true }, { Origin: 'https://evil.example' });
     assert.equal(xorigin.status, 403);
   });
@@ -211,7 +223,7 @@ describe('server', () => {
     const flow = s.mock.calls.find((c) => c.path === '/billing_request_flows');
     assert.match(flow.body.billing_request_flows.redirect_uri, /^https:\/\/example\.test\/register-complete\.html\?ref=/);
 
-    const row = s.db.prepare("SELECT * FROM registrations WHERE child_name = 'Alex Parent'").get();
+    const row = (await s.db.get("SELECT * FROM registrations WHERE child_name = 'Alex Parent'"));
     assert.equal(row.mandate_status, 'pending_customer');
     assert.equal(row.payment_status, 'none');
 
@@ -226,7 +238,7 @@ describe('server', () => {
     // billing request fulfilled → mandate linked, NOT a payment
     let w = await webhook(s.base, [{ id: 'EV1', resource_type: 'billing_requests', action: 'fulfilled', links: { billing_request: row.gc_billing_request_id } }]);
     assert.equal(w.status, 200);
-    let cur = s.db.prepare('SELECT * FROM registrations WHERE id = ?').get(row.id);
+    let cur = (await s.db.get('SELECT * FROM registrations WHERE id = ?', row.id));
     assert.equal(cur.gc_mandate_id, 'MD1');
     assert.equal(cur.mandate_status, 'pending_submission');
     assert.equal(cur.payment_status, 'none');
@@ -237,7 +249,7 @@ describe('server', () => {
 
     // mandate active; auto-create is off so no subscription
     w = await webhook(s.base, [{ id: 'EV2', resource_type: 'mandates', action: 'active', links: { mandate: 'MD1' } }]);
-    cur = s.db.prepare('SELECT * FROM registrations WHERE id = ?').get(row.id);
+    cur = (await s.db.get('SELECT * FROM registrations WHERE id = ?', row.id));
     assert.equal(cur.mandate_status, 'active');
     assert.equal(cur.gc_subscription_id, null);
 
@@ -259,23 +271,23 @@ describe('server', () => {
     a = await postJson(s.base, `/api/admin/registrations/${row.id}/subscribe`, {}, auth);
     assert.equal(a.body.already, true);
     assert.equal(s.mock.calls.filter((c) => c.path === '/subscriptions').length, 1, 'no duplicate subscription');
-    cur = s.db.prepare('SELECT * FROM registrations WHERE id = ?').get(row.id);
+    cur = (await s.db.get('SELECT * FROM registrations WHERE id = ?', row.id));
     assert.equal(cur.registration_status, 'active');
 
     // payment confirmed then a failure
     s.mock.state.payments.PM1 = { id: 'PM1', status: 'confirmed', amount: 3000, charge_date: '2026-12-01', links: { mandate: 'MD1', subscription: cur.gc_subscription_id } };
     await webhook(s.base, [{ id: 'EV3', resource_type: 'payments', action: 'confirmed', links: { payment: 'PM1' } }]);
-    assert.equal(s.db.prepare('SELECT payment_status FROM registrations WHERE id = ?').get(row.id).payment_status, 'confirmed');
+    assert.equal((await s.db.get('SELECT payment_status FROM registrations WHERE id = ?', row.id)).payment_status, 'confirmed');
     s.mock.state.payments.PM2 = { id: 'PM2', status: 'failed', amount: 3000, charge_date: '2027-01-01', links: { mandate: 'MD1', subscription: cur.gc_subscription_id } };
     await webhook(s.base, [{ id: 'EV4', resource_type: 'payments', action: 'failed', links: { payment: 'PM2' }, details: { cause: 'insufficient_funds' } }]);
-    assert.equal(s.db.prepare('SELECT payment_status FROM registrations WHERE id = ?').get(row.id).payment_status, 'failed');
+    assert.equal((await s.db.get('SELECT payment_status FROM registrations WHERE id = ?', row.id)).payment_status, 'failed');
     assert.ok(s.app.notify.sent.some((m) => /Payment failed/.test(m.subject)));
-    assert.equal(s.db.prepare('SELECT count(*) n FROM payments').get().n, 2);
+    assert.equal((await s.db.get('SELECT CAST(count(*) AS INTEGER) n FROM payments')).n, 2);
 
     // admin cancels
     a = await postJson(s.base, `/api/admin/registrations/${row.id}/cancel`, {}, auth);
     assert.equal(a.status, 200);
-    cur = s.db.prepare('SELECT * FROM registrations WHERE id = ?').get(row.id);
+    cur = (await s.db.get('SELECT * FROM registrations WHERE id = ?', row.id));
     assert.equal(cur.subscription_status, 'cancelled');
     assert.equal(cur.registration_status, 'cancelled');
   });
@@ -292,11 +304,11 @@ describe('server', () => {
 describe('auto-create subscriptions (when owner enables it)', () => {
   let s;
   before(async () => { s = await startServer({ BILLING_AUTO_CREATE_SUBSCRIPTIONS: 'true', BILLING_DAY_OF_MONTH: '1' }); });
-  after(() => s.server.close());
+  after(async () => { s.server.close(); await s.db.close(); });
 
   test('creates exactly one subscription even if mandate events repeat', async () => {
     const r = await postJson(s.base, '/api/registrations', reg({ membershipId: 'grassroots-2', days: ['Monday', 'Friday'] }));
-    const row = s.db.prepare('SELECT * FROM registrations WHERE reference = ?').get(r.body.reference);
+    const row = (await s.db.get('SELECT * FROM registrations WHERE reference = ?', r.body.reference));
     s.mock.state.mandates.MD1 = 'active';
     await webhook(s.base, [{ id: 'A1', resource_type: 'billing_requests', action: 'fulfilled', links: { billing_request: row.gc_billing_request_id, mandate_request_mandate: 'MD1', customer: 'CU1' } }]);
     await webhook(s.base, [{ id: 'A2', resource_type: 'mandates', action: 'active', links: { mandate: 'MD1' } }]);
@@ -311,7 +323,7 @@ describe('auto-create subscriptions (when owner enables it)', () => {
 describe('no GoCardless configured', () => {
   test('registration is saved and parent told no payment was taken', async () => {
     const config = load({});
-    const app = createApp({ config, db: dbMod.open(':memory:'), gc: null, log: quiet });
+    const app = createApp({ config, db: await freshDb(), gc: null, log: quiet });
     const server = http.createServer(app.handler);
     await new Promise((r) => server.listen(0, '127.0.0.1', r));
     const base = `http://127.0.0.1:${server.address().port}`;
