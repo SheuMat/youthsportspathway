@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" /><meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Book Now | Youth Sports Pathway</title>
+  <meta name="description" content="Book a free basketball taster session with Youth Sports Pathway at Ecclesfield School, Sheffield. Grassroots (5–10) and Development (11–15)." />
+  <link rel="stylesheet" href="css/style.css" />
+  <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;600;700;800;900&family=Barlow:wght@400;500;600;700&display=swap" rel="stylesheet" />
+</head>
+<body>
+  <header class="site-header" id="site-header">
+    <nav class="nav container">
+      <a href="index.html" class="nav-logo"><img src="assets/ysp-logo.png" alt="YSP" class="logo-img" /></a>
+      <button class="nav-toggle" id="nav-toggle" aria-label="Toggle menu"><span></span><span></span><span></span></button>
+      <ul class="nav-links" id="nav-links">
+        <li><a href="index.html" class="nav-link">Home</a></li>
+        <li><a href="about.html" class="nav-link">About</a></li>
+        <li class="nav-dropdown"><a href="basketball.html" class="nav-link">Programmes ▾</a>
+          <ul class="dropdown-menu">
+            <li><a href="basketball.html">Basketball Sessions</a></li>
+            <li><a href="schools.html">School Programmes</a></li>
+            <li><a href="pathways.html">Pathways</a></li>
+          </ul>
+        </li>
+        <li><a href="schools.html" class="nav-link">Schools</a></li>
+        <li><a href="timetable.html" class="nav-link">Timetable</a></li>
+        <li><a href="team.html" class="nav-link">Team</a></li>
+        <li><a href="success-stories.html" class="nav-link">Success Stories</a></li>
+        <li><a href="partners.html" class="nav-link">Partners</a></li>
+        <li><a href="contact.html" class="nav-link">Contact Us</a></li>
+        <li><a href="book.html" class="nav-link btn-nav">Book Now</a></li>
+      </ul>
+    </nav>
+  </header>
+
+  <section class="page-hero">
+    <div class="container">
+      <span class="eyebrow">Book Now</span>
+      <h1>Book Now</h1>
+      <p>Book a free taster session for your child. Tasters are free — no payment or Direct Debit details needed.</p>
+    </div>
+  </section>
+
+  <section class="section">
+    <div class="container form-narrow">
+      <form id="taster-form" class="contact-form" novalidate>
+        <fieldset class="form-fieldset">
+          <legend>1. Choose a Programme</legend>
+          <div class="choice-grid" data-ysp="programme-choices"></div>
+        </fieldset>
+        <fieldset class="form-fieldset">
+          <legend>2. Choose a Session Day</legend>
+          <div class="choice-grid" data-ysp="day-choices"><p style="font-size:0.9rem;">Choose a programme first.</p></div>
+          <div class="form-group" style="margin-top:20px;">
+            <label for="taster-date">Preferred Taster Date *</label>
+            <input type="date" id="taster-date" name="preferredDate" required />
+            <p style="font-size:0.8rem;margin-top:6px;opacity:0.75;">Must fall on your chosen session day.</p>
+          </div>
+        </fieldset>
+        <fieldset class="form-fieldset">
+          <legend>3. Parent / Guardian</legend>
+          <div class="form-group"><label for="parent-name">Full Name *</label><input type="text" id="parent-name" name="parentName" required maxlength="120" autocomplete="name" /></div>
+          <div class="form-row">
+            <div class="form-group"><label for="parent-email">Email *</label><input type="email" id="parent-email" name="parentEmail" required maxlength="200" autocomplete="email" /></div>
+            <div class="form-group"><label for="parent-phone">Telephone *</label><input type="tel" id="parent-phone" name="parentPhone" required maxlength="30" autocomplete="tel" pattern="[0-9+() \-]{10,20}" /></div>
+          </div>
+        </fieldset>
+        <fieldset class="form-fieldset">
+          <legend>4. Child</legend>
+          <div class="form-row">
+            <div class="form-group"><label for="child-name">Child's Full Name *</label><input type="text" id="child-name" name="childName" required maxlength="120" /></div>
+            <div class="form-group"><label for="child-age">Child's Age *</label><input type="number" id="child-age" name="childAge" required min="5" max="15" step="1" inputmode="numeric" /></div>
+          </div>
+        </fieldset>
+        <fieldset class="form-fieldset">
+          <legend>5. Emergency Contact &amp; Medical</legend>
+          <div class="form-row">
+            <div class="form-group"><label for="emergency-name">Emergency Contact Name *</label><input type="text" id="emergency-name" name="emergencyName" required maxlength="120" /></div>
+            <div class="form-group"><label for="emergency-phone">Emergency Contact Telephone *</label><input type="tel" id="emergency-phone" name="emergencyPhone" required maxlength="30" pattern="[0-9+() \-]{10,20}" /></div>
+          </div>
+          <div class="form-group">
+            <label for="medical-info">Medical conditions, allergies or additional needs</label>
+            <textarea id="medical-info" name="medicalInfo" maxlength="2000" placeholder="e.g. asthma (inhaler), allergies, or anything that helps us support your child. Leave blank if none."></textarea>
+          </div>
+        </fieldset>
+        <fieldset class="form-fieldset">
+          <legend>6. Consent</legend>
+          <div class="form-group"><label class="form-check"><input type="checkbox" name="participationConsent" required /> I am the child's parent or legal guardian and I give permission for them to take part in YSP basketball sessions. *</label></div>
+          <div class="form-group"><label class="form-check"><input type="checkbox" name="medicalConsent" required /> In an emergency, I give permission for YSP coaches to give first aid and to seek medical treatment for my child if I cannot be contacted. I have told YSP about any medical conditions above. *</label></div>
+          <div class="form-group">
+            <p style="font-size:0.85rem;margin-bottom:8px;"><strong>Photos and video *</strong> — may YSP use photos or videos of your child taking part on our website and social media?</p>
+            <label class="form-check"><input type="radio" name="photoConsent" value="yes" required /> Yes, I give permission</label>
+            <label class="form-check" style="margin-top:6px;"><input type="radio" name="photoConsent" value="no" required /> No, please do not use images of my child</label>
+          </div>
+        </fieldset>
+        <div class="form-group">
+          <label for="taster-notes">Anything else we should know? (optional)</label>
+          <textarea id="taster-notes" name="notes" maxlength="2000" placeholder="e.g. basketball experience"></textarea>
+        </div>
+        <p style="font-size:0.8rem;opacity:0.75;margin-bottom:16px;">We use these details only to manage your booking and contact you about your child's sessions. Information is stored securely and is not shared except with service providers needed to run our programmes. See our <a href="policies.html#privacy" style="color:var(--red);">privacy information</a>.</p>
+        <div class="form-group"><label class="form-check"><input type="checkbox" name="privacyAck" required /> I have read the privacy information and agree to YSP using these details to manage this taster request. *</label></div>
+        <div class="form-group"><label class="form-check"><input type="checkbox" name="marketingConsent" /> Optional: I'd like to receive YSP news and updates by email. I can unsubscribe at any time.</label></div>
+        <input type="text" name="website" class="hp-field" tabindex="-1" autocomplete="off" aria-hidden="true" />
+        <p class="form-status" role="status" aria-live="polite"></p>
+        <button type="submit" class="btn btn-primary form-submit">Book Free Taster</button>
+        <p style="font-size:0.8rem;margin-top:12px;opacity:0.75;">This is a request — we'll confirm your place by email or phone.</p>
+      </form>
+    </div>
+  </section>
+
+  <section class="section bg-red">
+    <div class="container text-center">
+      <span class="eyebrow light">Already Tried a Session?</span>
+      <h2>Join as a Member</h2>
+      <p style="max-width:560px;margin:16px auto 40px;opacity:0.9;" data-ysp="membership-summary">£30/month for one session weekly, or £50/month for both sessions within the selected programme.</p>
+      <a href="register.html" class="btn btn-white">Register for Membership</a>
+    </div>
+  </section>
+
+  <footer class="site-footer">
+    <div class="container footer-grid">
+      <div class="footer-brand"><img src="assets/ysp-logo.png" alt="YSP" class="footer-logo" /><p>Developing Sheffield's next generation of athletes, leaders and coaches.</p><div class="social-links"><a href="#" class="social-link">IG</a><a href="#" class="social-link">TK</a><a href="#" class="social-link">FB</a><a href="#" class="social-link">YT</a></div></div>
+      <div class="footer-col"><h4>Programmes</h4><ul><li><a href="basketball.html">Basketball Sessions</a></li><li><a href="schools.html">School Programmes</a></li><li><a href="pathways.html">Pathways</a></li></ul></div>
+      <div class="footer-col"><h4>Company</h4><ul><li><a href="about.html">About Us</a></li><li><a href="team.html">Team</a></li><li><a href="success-stories.html">Success Stories</a></li><li><a href="partners.html">Partners</a></li><li><a href="community.html">Community</a></li></ul></div>
+      <div class="footer-col"><h4>Info</h4><ul><li><a href="timetable.html">Timetable</a></li><li><a href="policies.html">Policies</a></li><li><a href="contact.html">Contact</a></li></ul></div>
+    </div>
+    <div class="footer-bottom container"><p>© 2025 Youth Sports Pathway Ltd.</p><p><a href="policies.html">Privacy</a> · <a href="policies.html">Terms</a></p></div>
+  </footer>
+  <script src="js/site-data.js"></script>
+  <script src="js/site.js"></script>
+  <script src="js/forms.js"></script>
+  <script src="js/main.js"></script>
+</body>
+</html>

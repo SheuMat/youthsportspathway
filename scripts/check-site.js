@@ -14,7 +14,7 @@ for (const p of pages) {
   const text = html.replace(/<script[\s\S]*?<\/script>/g, '');
   for (const re of BANNED) if (re.test(text)) fail(p, `contains ${re}`);
   const h1 = (html.match(/<h1[\s>]/g) || []).length;
-  if (p !== 'index.html' && p !== 'admin.html' && h1 !== 1) fail(p, `${h1} <h1> elements`);
+  if (!['index.html', 'admin.html', 'taster.html'].includes(p) && h1 !== 1) fail(p, `${h1} <h1> elements`);
   if (!/<title>[^<]+<\/title>/.test(html)) fail(p, 'missing <title>');
   if (p !== 'admin.html' && !/<meta name="description"/.test(html)) fail(p, 'missing meta description');
   for (const m of html.matchAll(/(?:href|src)="([^"#?]+)(?:[?#][^"]*)?"/g)) {

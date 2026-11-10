@@ -35,13 +35,16 @@ function load(env = process.env) {
       autoCreateSubscriptions: env.BILLING_AUTO_CREATE_SUBSCRIPTIONS === 'true',
       dayOfMonth: dom
     },
-    smtp: {
-      host: env.SMTP_HOST || '',
-      port: Number(env.SMTP_PORT) || 465,
-      user: env.SMTP_USER || '',
-      pass: env.SMTP_PASS || '',
-      from: env.NOTIFY_FROM || 'youthsportspathway@gmail.com',
-      to: env.NOTIFY_TO || 'youthsportspathway@gmail.com'
+    email: {
+      resendApiKey: env.RESEND_API_KEY || '',
+      from: env.EMAIL_FROM || 'Youth Sports Pathway <bookings@youthsportspathway.co.uk>',
+      to: env.NOTIFY_TO || 'info@youthsportspathway.co.uk',
+      smtp: {
+        host: env.SMTP_HOST || '',
+        port: Number(env.SMTP_PORT) || 465,
+        user: env.SMTP_USER || '',
+        pass: env.SMTP_PASS || ''
+      }
     }
   };
 }

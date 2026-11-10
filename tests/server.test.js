@@ -85,7 +85,8 @@ function webhook(base, events, secret = SECRET) {
     .then(async (r) => ({ status: r.status, body: await r.json().catch(() => null) }));
 }
 
-const parent = { parentName: 'Sam Parent', parentEmail: 'sam@example.com', parentPhone: '07700 900123', privacyAck: true };
+const parent = { parentName: 'Sam Parent', parentEmail: 'sam@example.com', parentPhone: '07700 900123', privacyAck: true,
+  emergencyName: 'Jo Parent', emergencyPhone: '07700 900999', medicalInfo: 'Asthma - inhaler in bag', participationConsent: true, medicalConsent: true, photoConsent: 'no' };
 const reg = (o) => ({ ...parent, childName: 'Alex Parent', childAge: 8, termsAck: true, programmeId: 'grassroots', membershipId: 'grassroots-1', days: ['Monday'], ...o });
 
 describe('shared programme data', () => {
@@ -170,7 +171,7 @@ describe('server', () => {
     assert.equal(r.status, 201); assert.equal(r.body.status, 'requested'); assert.match(r.body.reference, /^YSPT-/);
     assert.equal(s.mock.calls.length, before, 'no GoCardless calls for tasters');
     const sent = s.app.notify.sent.map((m) => m.to);
-    assert.ok(sent.includes('youthsportspathway@gmail.com') && sent.includes('sam@example.com'));
+    assert.ok(sent.includes('info@youthsportspathway.co.uk') && sent.includes('sam@example.com'));
   });
 
   test('taster: day must belong to programme, date must match day, age in range, future date', async () => {
@@ -332,5 +333,103 @@ describe('no GoCardless configured', () => {
     assert.equal(r.status, 201);
     assert.equal(r.body.status, 'submitted');
     assert.equal(r.body.authorisationUrl, undefined);
+  });
+});
+
+describe('consent', () => {
+  let s;
+  before(async () => { s = await startServer(); });
+  after(async () => { s.server.close(); await s.db.close(); });
+  test('participation, medical and photo consent are required for a taster', async () => {
+    const base = { ...parent, programmeId: 'grassroots', day: 'Monday', preferredDate: '2026-11-16', childName: 'Kid', childAge: 7 };
+    for (const [k, v] of [['participationConsent', false], ['medicalConsent', false], ['photoConsent', ''], ['emergencyName', ''], ['emergencyPhone', '']]) {
+      const r = await postJson(s.base, '/api/tasters', { ...base, [k]: v });
+      assert.equal(r.status, 422, k); assert.ok(r.body.fields[k], k);
+    }
+  });
+  test('consents and emergency details are stored and included in the YSP email', async () => {
+    const r = await postJson(s.base, '/api/tasters', { ...parent, programmeId: 'grassroots', day: 'Monday', preferredDate: '2026-11-16', childName: 'Kid Two', childAge: 7 });
+    assert.equal(r.status, 201);
+    const row = await s.db.get('SELECT * FROM tasters WHERE reference = ?', r.body.reference);
+    assert.equal(row.emergency_name, 'Jo Parent'); assert.equal(row.consent_photo, 'no'); assert.equal(Number(row.consent_medical), 1);
+    const mail = s.app.notify.sent.find((m) => m.to === 'info@youthsportspathway.co.uk' && m.subject.includes(r.body.reference));
+    assert.match(mail.text, /Emergency contact: Jo Parent, 07700 900999/);
+    assert.match(mail.text, /Photos and video: NO/);
+    assert.match(mail.text, /Asthma/);
+    assert.equal(mail.replyTo, 'sam@example.com');
+  });
+});
+
+describe('Resend email', () => {
+  const notifyMod = require('../api/_lib/notify');
+  test('posts to the Resend API with from, to, reply_to', async () => {
+    const calls = [];
+    const fakeFetch = async (url, opts) => { calls.push({ url, opts }); return new Response('{"id":"e1"}', { status: 200 }); };
+    const n = notifyMod.create({ resendApiKey: 're_test', from: 'YSP <bookings@youthsportspathway.co.uk>', to: 'info@youthsportspathway.co.uk' }, quiet, fakeFetch);
+    assert.equal(n.provider, 'resend');
+    assert.equal(await n.toYsp('Subject', 'Body', 'parent@example.com'), true);
+    assert.equal(calls[0].url, 'https://api.resend.com/emails');
+    assert.equal(calls[0].opts.headers.Authorization, 'Bearer re_test');
+    const body = JSON.parse(calls[0].opts.body);
+    assert.deepEqual(body.to, ['info@youthsportspathway.co.uk']);
+    assert.equal(body.reply_to, 'parent@example.com');
+    assert.equal(body.from, 'YSP <bookings@youthsportspathway.co.uk>');
+  });
+  test('a Resend error resolves false instead of throwing', async () => {
+    const n = notifyMod.create({ resendApiKey: 're_test', from: 'x', to: 'y@z.com' }, quiet, async () => new Response('bad', { status: 422 }));
+    assert.equal(await n.toYsp('S', 'T'), false);
+  });
+});
+
+describe('email-only mode (no database)', () => {
+  async function emailOnlyServer(ok) {
+    const config = load({ RESEND_API_KEY: 're_test' });
+    const delivered = [];
+    const notify = {
+      provider: 'resend', configured: true, sent: delivered,
+      toYsp: async (subject, text, replyTo) => { delivered.push({ to: 'ysp', subject, text, replyTo }); return ok; },
+      toParent: async (to, subject, text) => { delivered.push({ to, subject, text }); return ok; }
+    };
+    const app = createApp({ config, db: null, gc: null, notify, log: quiet, now: () => new Date('2026-11-10T10:00:00Z') });
+    const server = http.createServer(app.handler);
+    await new Promise((r) => server.listen(0, '127.0.0.1', r));
+    return { server, base: `http://127.0.0.1:${server.address().port}`, delivered };
+  }
+  test('taster is emailed to YSP and parent, no storage needed', async () => {
+    const s = await emailOnlyServer(true);
+    const r = await postJson(s.base, '/api/tasters', { ...parent, programmeId: 'development', day: 'Friday', preferredDate: '2026-11-13', childName: 'Teen', childAge: 13 });
+    const reg = await postJson(s.base, '/api/registrations', reg_());
+    const health = await (await fetch(s.base + '/api/health')).json();
+    const admin = await fetch(s.base + '/api/admin/overview');
+    s.server.close();
+    assert.equal(r.status, 201);
+    assert.equal(s.delivered.filter((m) => m.to === 'ysp').length, 2);
+    assert.ok(s.delivered.some((m) => m.to === 'sam@example.com'));
+    assert.equal(reg.status, 201); assert.equal(reg.body.authorisationUrl, undefined);
+    assert.match(health.database, /email-only/);
+    assert.equal(admin.status, 503);
+  });
+  test('if the YSP email fails the parent is told to retry (nothing silently lost)', async () => {
+    const s = await emailOnlyServer(false);
+    const r = await postJson(s.base, '/api/tasters', { ...parent, programmeId: 'grassroots', day: 'Monday', preferredDate: '2026-11-16', childName: 'Kid', childAge: 7 });
+    s.server.close();
+    assert.equal(r.status, 503);
+    assert.match(r.body.error, /please try again/i);
+  });
+});
+function reg_() { return reg(); }
+
+describe('migration', () => {
+  test('an existing SQLite database gains the new consent columns', async () => {
+    const fs = require('node:fs'); const os = require('node:os'); const path = require('node:path');
+    const file = path.join(fs.mkdtempSync(path.join(os.tmpdir(), 'ysp-')), 'old.sqlite');
+    const { DatabaseSync } = require('node:sqlite');
+    const old = new DatabaseSync(file);
+    old.exec("CREATE TABLE tasters (id INTEGER PRIMARY KEY AUTOINCREMENT, reference TEXT UNIQUE NOT NULL, programme_id TEXT NOT NULL, day TEXT NOT NULL, preferred_date TEXT NOT NULL, parent_name TEXT NOT NULL, parent_email TEXT NOT NULL, parent_phone TEXT NOT NULL, child_name TEXT NOT NULL, child_age INTEGER NOT NULL, notes TEXT, marketing_consent INTEGER NOT NULL DEFAULT 0, status TEXT NOT NULL DEFAULT 'requested', created_at TEXT, updated_at TEXT)");
+    old.close();
+    const db = dbMod.open(file);
+    const cols = (await db.all('PRAGMA table_info(tasters)')).map((c) => c.name);
+    await db.close();
+    for (const c of ['emergency_name', 'emergency_phone', 'medical_info', 'consent_participation', 'consent_medical', 'consent_photo']) assert.ok(cols.includes(c), c);
   });
 });

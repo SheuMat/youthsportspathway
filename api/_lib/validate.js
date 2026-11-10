@@ -29,8 +29,17 @@ function parentChild(b, c, programme) {
     childName: c.required('childName', str(b.childName, 120), "Child's name"),
     childAge: Number(b.childAge),
     notes: str(b.notes, 2000),
+    emergencyName: c.required('emergencyName', str(b.emergencyName, 120), 'Emergency contact name'),
+    emergencyPhone: c.phone('emergencyPhone', c.required('emergencyPhone', str(b.emergencyPhone, 30), 'Emergency contact telephone')),
+    medicalInfo: str(b.medicalInfo, 2000),
+    participationConsent: b.participationConsent === true,
+    medicalConsent: b.medicalConsent === true,
+    photoConsent: b.photoConsent === 'yes' ? 'yes' : b.photoConsent === 'no' ? 'no' : '',
     marketingConsent: b.marketingConsent === true
   };
+  if (!out.participationConsent) c.fail('participationConsent', 'Parent/guardian permission is needed for your child to take part.');
+  if (!out.medicalConsent) c.fail('medicalConsent', 'Please confirm the emergency first aid and medical consent.');
+  if (!out.photoConsent) c.fail('photoConsent', 'Please choose yes or no for photo and video consent.');
   if (!Number.isInteger(out.childAge)) c.fail('childAge', "Please enter your child's age.");
   else if (programme && (out.childAge < programme.minAge || out.childAge > programme.maxAge)) {
     c.fail('childAge', `${programme.name} is for ages ${programme.ages}.`);

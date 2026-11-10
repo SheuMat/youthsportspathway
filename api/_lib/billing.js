@@ -1,6 +1,7 @@
 'use strict';
 // Membership registration, GoCardless mandate/subscription lifecycle and webhooks.
 const crypto = require('node:crypto');
+const emails = require('./emails');
 
 const PAYMENT_FAILED = new Set(['failed', 'cancelled', 'charged_back', 'customer_approval_denied']);
 
@@ -53,20 +54,21 @@ function create({ db, config, gc, notify, log = console }) {
       message = 'Thanks — we\'ve received your registration. Online Direct Debit set-up isn\'t available just now, so we\'ll email you a secure link to complete it.';
     }
     const r = await db.run(`INSERT INTO registrations (reference, public_token, membership_id, programme_id, days, amount_pence,
-      parent_name, parent_email, parent_phone, child_name, child_age, notes, marketing_consent, existing_direct_debit, registration_status)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING id`,
+      parent_name, parent_email, parent_phone, child_name, child_age, notes, marketing_consent, existing_direct_debit, registration_status,
+      emergency_name, emergency_phone, medical_info, consent_participation, consent_medical, consent_photo)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING id`,
       reference, token, v.membership.id, v.programme.id, v.days.join(','), v.membership.amountPence,
-      v.parentName, v.parentEmail, v.parentPhone, v.childName, v.childAge, v.notes, v.marketingConsent ? 1 : 0, v.existingDirectDebit ? 1 : 0, status);
+      v.parentName, v.parentEmail, v.parentPhone, v.childName, v.childAge, v.notes, v.marketingConsent ? 1 : 0, v.existingDirectDebit ? 1 : 0, status,
+      v.emergencyName, v.emergencyPhone, v.medicalInfo, 1, 1, v.photoConsent);
     const id = Number(r.rows[0].id);
     await db.audit('registration', id, 'created', status);
 
-    const summary = `${v.membership.name} (£${v.membership.amountPence / 100}/month) — ${v.days.join(' and ')}`;
-    notify.toYsp(`New registration ${reference}: ${v.programme.name}`,
-      `Reference: ${reference}\nStatus: ${status}\nMembership: ${summary}\nChild: ${v.childName} (${v.childAge})\nParent: ${v.parentName}, ${v.parentEmail}, ${v.parentPhone}\nNotes: ${v.notes || '-'}\nMarketing consent: ${v.marketingConsent ? 'yes' : 'no'}`);
+    const toYsp = emails.registrationToYsp(v, reference, status);
+    await notify.toYsp(toYsp.subject, toYsp.text, v.parentEmail);
 
     if (status !== 'awaiting_direct_debit') {
-      notify.toParent(v.parentEmail, `YSP registration received (${reference})`,
-        `Hi ${v.parentName},\n\n${message}\n\nMembership: ${summary}\nReference: ${reference}\n\nNo payment has been taken.\n\nYouth Sports Pathway`);
+      const ack = emails.registrationToParent(v, reference, message);
+      await notify.toParent(v.parentEmail, ack.subject, ack.text);
       return { status, reference, message };
     }
 
@@ -158,7 +160,7 @@ function create({ db, config, gc, notify, log = console }) {
     if (['failed', 'cancelled', 'expired'].includes(s) && r.registration_status === 'awaiting_direct_debit') fields.registration_status = 'submitted';
     await update(r.id, fields, `mandate_${status}`);
     if (['failed', 'cancelled', 'expired'].includes(s)) {
-      notify.toYsp(`Direct Debit ${s}: ${r.reference}`, `Mandate for ${r.child_name} (${r.membership_id}) is ${s}. Parent: ${r.parent_name} ${r.parent_email}. Cause: ${(event.details && event.details.cause) || '-'}`);
+      await notify.toYsp(`Direct Debit ${s}: ${r.reference}`, `Mandate for ${r.child_name} (${r.membership_id}) is ${s}. Parent: ${r.parent_name} ${r.parent_email}. Cause: ${(event.details && event.details.cause) || '-'}`);
     }
     if (s === 'active' && config.billing.autoCreateSubscriptions && !r.gc_subscription_id) {
       await createSubscription(r.id);
@@ -183,7 +185,7 @@ function create({ db, config, gc, notify, log = console }) {
         const fields = { gc_mandate_id: mandateId, gc_customer_id: customerId || r.gc_customer_id };
         if (r.mandate_status === 'pending_customer') fields.mandate_status = 'pending_submission';
         await update(r.id, fields, 'billing_request_fulfilled');
-        notify.toParent(r.parent_email, `Direct Debit received (${r.reference})`,
+        await notify.toParent(r.parent_email, `Direct Debit received (${r.reference})`,
           `Hi ${r.parent_name},\n\nThanks — your Direct Debit instruction for ${r.child_name}'s YSP membership has been received. No payment has been taken yet. We'll confirm your start date and first collection date before anything is collected.\n\nReference: ${r.reference}\n\nYouth Sports Pathway`);
         const mandate = await gc.getMandate(mandateId).catch(() => null);
         if (mandate) await onMandateStatus(await byId(r.id), mandate.status, ev);
@@ -204,7 +206,7 @@ function create({ db, config, gc, notify, log = console }) {
         const fields = { subscription_status: map[ev.action] };
         if (ev.action === 'cancelled') fields.registration_status = 'cancelled';
         await update(r.id, fields, `subscription_${ev.action}`);
-        if (ev.action === 'cancelled') notify.toYsp(`Subscription cancelled: ${r.reference}`, `Subscription for ${r.child_name} (${r.membership_id}) was cancelled. Cause: ${(ev.details && ev.details.cause) || '-'}`);
+        if (ev.action === 'cancelled') await notify.toYsp(`Subscription cancelled: ${r.reference}`, `Subscription for ${r.child_name} (${r.membership_id}) was cancelled. Cause: ${(ev.details && ev.details.cause) || '-'}`);
         return;
       }
       case 'payments': {
@@ -217,7 +219,7 @@ function create({ db, config, gc, notify, log = console }) {
         if (!r) return;
         await update(r.id, { payment_status: p.status }, `payment_${ev.action}`);
         if (PAYMENT_FAILED.has(p.status)) {
-          notify.toYsp(`Payment ${p.status}: ${r.reference}`, `Payment ${p.id} (£${(p.amount || 0) / 100}, ${p.charge_date}) for ${r.child_name} is ${p.status}. Parent: ${r.parent_name} ${r.parent_email} ${r.parent_phone}. Cause: ${(ev.details && ev.details.cause) || '-'}`);
+          await notify.toYsp(`Payment ${p.status}: ${r.reference}`, `Payment ${p.id} (£${(p.amount || 0) / 100}, ${p.charge_date}) for ${r.child_name} is ${p.status}. Parent: ${r.parent_name} ${r.parent_email} ${r.parent_phone}. Cause: ${(ev.details && ev.details.cause) || '-'}`);
         }
         return;
       }

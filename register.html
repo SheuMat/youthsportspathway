@@ -27,7 +27,8 @@
         <li><a href="team.html" class="nav-link">Team</a></li>
         <li><a href="success-stories.html" class="nav-link">Success Stories</a></li>
         <li><a href="partners.html" class="nav-link">Partners</a></li>
-        <li><a href="contact.html" class="nav-link btn-nav">Contact Us</a></li>
+        <li><a href="contact.html" class="nav-link">Contact Us</a></li>
+        <li><a href="book.html" class="nav-link btn-nav">Book Now</a></li>
       </ul>
     </nav>
   </header>
@@ -70,8 +71,29 @@
             <div class="form-group"><label for="child-age">Child's Age *</label><input type="number" id="child-age" name="childAge" required min="5" max="15" step="1" inputmode="numeric" /></div>
           </div>
         </fieldset>
+        <fieldset class="form-fieldset">
+          <legend>6. Emergency Contact &amp; Medical</legend>
+          <div class="form-row">
+            <div class="form-group"><label for="emergency-name">Emergency Contact Name *</label><input type="text" id="emergency-name" name="emergencyName" required maxlength="120" /></div>
+            <div class="form-group"><label for="emergency-phone">Emergency Contact Telephone *</label><input type="tel" id="emergency-phone" name="emergencyPhone" required maxlength="30" pattern="[0-9+() \-]{10,20}" /></div>
+          </div>
+          <div class="form-group">
+            <label for="medical-info">Medical conditions, allergies or additional needs</label>
+            <textarea id="medical-info" name="medicalInfo" maxlength="2000" placeholder="e.g. asthma (inhaler), allergies, or anything that helps us support your child. Leave blank if none."></textarea>
+          </div>
+        </fieldset>
+        <fieldset class="form-fieldset">
+          <legend>7. Consent</legend>
+          <div class="form-group"><label class="form-check"><input type="checkbox" name="participationConsent" required /> I am the child's parent or legal guardian and I give permission for them to take part in YSP basketball sessions. *</label></div>
+          <div class="form-group"><label class="form-check"><input type="checkbox" name="medicalConsent" required /> In an emergency, I give permission for YSP coaches to give first aid and to seek medical treatment for my child if I cannot be contacted. I have told YSP about any medical conditions above. *</label></div>
+          <div class="form-group">
+            <p style="font-size:0.85rem;margin-bottom:8px;"><strong>Photos and video *</strong> — may YSP use photos or videos of your child taking part on our website and social media?</p>
+            <label class="form-check"><input type="radio" name="photoConsent" value="yes" required /> Yes, I give permission</label>
+            <label class="form-check" style="margin-top:6px;"><input type="radio" name="photoConsent" value="no" required /> No, please do not use images of my child</label>
+          </div>
+        </fieldset>
         <div class="form-group">
-          <label for="reg-notes">Medical, access or other information (optional)</label>
+          <label for="reg-notes">Anything else we should know? (optional)</label>
           <textarea id="reg-notes" name="notes" maxlength="2000"></textarea>
         </div>
         <div class="summary-box" data-ysp="reg-summary" aria-live="polite">
