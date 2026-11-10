@@ -43,12 +43,8 @@
         { day: 'Friday', start: '18:00', end: '19:00', time: '6:00pm – 7:00pm' }
       ],
       tasterAvailable: true,
-      // OPERATIONAL HOLD: these sessions overlap Dream Chasers U12/U14 bookings
-      // at Ecclesfield School. Hall space, coach cover, safe capacity and the
-      // YSP/Dream Chasers arrangement must be confirmed before this is set to
-      // true. Until then registrations are held for approval and no Direct
-      // Debit is requested.
-      paidRegistrationOpen: false
+      // Sessions confirmed by YSP (venue, coaching and capacity arrangements agreed).
+      paidRegistrationOpen: true
     }
   ];
 
