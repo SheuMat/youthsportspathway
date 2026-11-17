@@ -11,10 +11,12 @@ function load(env = process.env) {
   if (gcEnv === 'live' && env.GOCARDLESS_LIVE_APPROVED !== 'true') problems.push('Live GoCardless is not approved (set GOCARDLESS_LIVE_APPROVED=true only after owner sign-off)');
   if (token && gcEnv === 'sandbox' && !token.startsWith('sandbox_')) problems.push('GOCARDLESS_ACCESS_TOKEN is not a sandbox token');
   if (token && gcEnv === 'live' && !token.startsWith('live_')) problems.push('GOCARDLESS_ACCESS_TOKEN is not a live token');
-  const dom = env.BILLING_DAY_OF_MONTH ? Number(env.BILLING_DAY_OF_MONTH) : null;
-  if (dom !== null && !(dom === -1 || (Number.isInteger(dom) && dom >= 1 && dom <= 28))) problems.push('BILLING_DAY_OF_MONTH must be 1-28 or -1');
 
   const gocardlessEnabled = Boolean(token && env.GOCARDLESS_WEBHOOK_SECRET && problems.length === 0);
+  const stripeKey = env.STRIPE_SECRET_KEY || '';
+  const stripeProblems = [];
+  if (stripeKey && !/^(sk|rk)_(test|live)_/.test(stripeKey)) stripeProblems.push('STRIPE_SECRET_KEY is not a Stripe secret key');
+  if (/^(sk|rk)_live_/.test(stripeKey) && env.STRIPE_LIVE_APPROVED !== 'true') stripeProblems.push('Live Stripe is not approved (set STRIPE_LIVE_APPROVED=true only after owner sign-off)');
   return {
     root: ROOT,
     port: Number(env.PORT) || 8000,
@@ -31,9 +33,16 @@ function load(env = process.env) {
       apiBase: env.GOCARDLESS_API_BASE_OVERRIDE || (gcEnv === 'live' ? 'https://api.gocardless.com' : 'https://api-sandbox.gocardless.com'),
       problems
     },
-    billing: {
-      autoCreateSubscriptions: env.BILLING_AUTO_CREATE_SUBSCRIPTIONS === 'true',
-      dayOfMonth: dom
+    stripe: {
+      enabled: Boolean(stripeKey && stripeProblems.length === 0),
+      // Card payments need the webhook secret to confirm payment; without it Checkout is not offered.
+      webhookConfigured: Boolean(env.STRIPE_WEBHOOK_SECRET),
+      mode: /_live_/.test(stripeKey) ? 'live' : 'test',
+      secretKey: stripeKey,
+      webhookSecret: env.STRIPE_WEBHOOK_SECRET || '',
+      // Test hook only: lets the test suite point at a local mock API.
+      apiBase: env.STRIPE_API_BASE_OVERRIDE || 'https://api.stripe.com/v1',
+      problems: stripeProblems
     },
     email: {
       resendApiKey: env.RESEND_API_KEY || '',

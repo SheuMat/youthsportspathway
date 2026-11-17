@@ -96,16 +96,21 @@ Keys stay on the server only and never appear in frontend files (`npm run check`
 ### Lifecycle
 
 ```
-register form → registration saved → billing request + hosted flow → parent authorises on GoCardless
-  → webhook billing_requests.fulfilled → mandate linked   (mandate status: pending_submission; NOT a payment)
-  → webhook mandates.active           → mandate active
-  → subscription created (admin button, or automatically if BILLING_AUTO_CREATE_SUBSCRIPTIONS=true)
-  → webhook payments.*                → payment status tracked (confirmed / paid_out / failed / charged_back…)
+register form (programme, days, start date, child's date of birth) → estimated quote stored
+  → billing request + hosted flow → parent authorises the Direct Debit on GoCardless
+  → billing_requests.fulfilled (webhook, or checked server-side when the parent returns) → mandate linked (NOT a payment)
+  → final quote using the mandate's next_possible_charge_date
+      upfront £0  → subscription created straight away (1st of the month, start_date = first collection date) → active
+      upfront > £0 → registration 'awaiting_upfront_payment'; parent pays on Stripe Checkout
+        → checkout.session.completed (Stripe webhook, or the session checked server-side) → subscription created → active
+  → webhook payments.* → payment status tracked (confirmed / paid_out / failed / charged_back…)
 ```
 
 - Webhooks are verified by HMAC signature; an invalid signature gets HTTP 498.
 - Each event ID is processed once, so duplicate deliveries are ignored.
-- Subscription creation uses an idempotency key per registration.
+- Subscription and Checkout creation use idempotency keys per registration, so retries never create a second subscription or charge.
+- A Checkout is reused while it is open; if the first Direct Debit date has moved, the amount is recalculated (and any open Checkout expired) before the parent can pay.
+- Stripe webhooks are verified with the `Stripe-Signature` header (5-minute tolerance) and each event ID is processed once.
 - Failed payments, failed or cancelled mandates and cancelled subscriptions email YSP when email is configured, and are always shown in admin.
 - Parents who tick "I already pay YSP by Direct Debit" are **not** sent to GoCardless. They are flagged for review so no duplicate mandate is created.
 - The same parent email, child and programme cannot be registered twice while a registration is active or pending.

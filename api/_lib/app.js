@@ -4,6 +4,7 @@ const path = require('node:path');
 const crypto = require('node:crypto');
 const validate = require('./validate');
 const gocardless = require('./gocardless');
+const stripeMod = require('./stripe');
 const billingMod = require('./billing');
 const notifyMod = require('./notify');
 const dbMod = require('./db');
@@ -27,12 +28,13 @@ const SECURITY_HEADERS = {
   'Permissions-Policy': 'camera=(), microphone=(), geolocation=()'
 };
 
-function createApp({ config, db, gc, notify, log = console, now = () => new Date() }) {
+function createApp({ config, db, gc, stripe, notify, log = console, now = () => new Date() }) {
   // db === null means "email-only" mode: submissions are emailed but not stored.
   if (db === undefined) db = dbMod.open(config.databaseUrl || config.databasePath);
   notify = notify || notifyMod.create(config.email, log);
   if (gc === undefined) gc = config.gocardless.enabled && db ? gocardless.client(config.gocardless) : null;
-  const billing = db ? billingMod.create({ db, config, gc, notify, log }) : null;
+  if (stripe === undefined) stripe = config.stripe && config.stripe.enabled && db ? stripeMod.client(config.stripe) : null;
+  const billing = db ? billingMod.create({ db, config, gc, stripe, notify, log, now }) : null;
   const emailOnly = !db;
   const settings = settingsMod.create(db, { now: () => now().getTime() });
   const adminAuth = db ? adminAuthMod.create({ db, config, now }) : null;
@@ -156,7 +158,7 @@ function createApp({ config, db, gc, notify, log = console, now = () => new Date
   async function postRegistration(req, res) {
     const b = await readJson(req);
     if (b.website) return send(res, 200, { ok: true, reference: 'YSPM-OK', message: 'Thanks.' });
-    const { c, v } = validate.registration(b);
+    const { c, v } = validate.registration(b, now().toISOString().slice(0, 10));
     if (!c.ok) return invalid(res, c);
     if (billing) {
       const out = await billing.register(v);
@@ -176,6 +178,50 @@ function createApp({ config, db, gc, notify, log = console, now = () => new Date
     const ack = emails.registrationToParent(v, reference, message);
     await notify.toParent(v.parentEmail, ack.subject, ack.text);
     send(res, 201, { ok: true, status, reference, message });
+  }
+
+  async function postStripeWebhook(req, res) {
+    if (!billing || !stripe) return send(res, 503, { error: 'Card payments not configured' });
+    if (!config.stripe.webhookSecret) return send(res, 503, { error: 'Webhooks not configured' });
+    const raw = await readBody(req, MAX_WEBHOOK_BODY);
+    if (!stripeMod.verifySignature(raw, req.headers['stripe-signature'], config.stripe.webhookSecret, Math.floor(now().getTime() / 1000))) {
+      return send(res, 400, { error: 'Invalid signature' });
+    }
+    let ev;
+    try { ev = JSON.parse(raw.toString('utf8')); } catch { return send(res, 400, { error: 'Invalid JSON' }); }
+    send(res, 200, await billing.handleStripeWebhook(ev));
+  }
+
+  // Membership journey helpers used by the Book Now page and the confirmation page.
+  async function membershipRoutes(req, res, url) {
+    const p = url.pathname;
+    if (!billing) return send(res, 404, { error: 'Not found' });
+    const days = (v) => String(v || '').split(',').map((d) => validate.str(d, 12)).filter(Boolean);
+    if (req.method === 'GET' && p === '/api/registrations/start-dates') {
+      return send(res, 200, { dates: billing.startDates({ membershipId: validate.str(url.searchParams.get('membershipId') || '', 30), days: days(url.searchParams.get('days')) }) });
+    }
+    if (req.method === 'GET' && p === '/api/registrations/quote') {
+      return send(res, 200, billing.previewQuote({ membershipId: validate.str(url.searchParams.get('membershipId') || '', 30), days: days(url.searchParams.get('days')), startDate: validate.str(url.searchParams.get('startDate') || '', 10) }));
+    }
+    if (req.method === 'GET' && p === '/api/registrations/status') {
+      const ref = String(url.searchParams.get('ref') || '').slice(0, 64);
+      if (!rateLimited(req, 'status-sync', 60)) await billing.sync(ref).catch((err) => log.warn('[billing] sync failed:', err.message));
+      const st = await billing.publicStatus(ref);
+      return st ? send(res, 200, st) : send(res, 404, { error: 'Not found' });
+    }
+    if (req.method === 'POST' && p === '/api/registrations/resume') {
+      if (!sameOrigin(req)) return send(res, 403, { error: 'Forbidden' });
+      if (rateLimited(req, 'resume', 20)) return send(res, 429, { error: 'Too many attempts. Please wait a few minutes.' });
+      const b = await readJson(req);
+      return send(res, 200, await billing.resumeDirectDebit(validate.str(b.ref || '', 64)));
+    }
+    if (req.method === 'POST' && p === '/api/registrations/checkout') {
+      if (!sameOrigin(req)) return send(res, 403, { error: 'Forbidden' });
+      if (rateLimited(req, 'checkout', 20)) return send(res, 429, { error: 'Too many attempts. Please wait a few minutes.' });
+      const b = await readJson(req);
+      return send(res, 200, await billing.startCheckout(validate.str(b.ref || '', 64)));
+    }
+    return null;
   }
 
   async function postWebhook(req, res) {
@@ -239,7 +285,7 @@ function createApp({ config, db, gc, notify, log = console, now = () => new Date
         database: db.kind,
         emailProvider: notify.provider,
         gocardless: { enabled: config.gocardless.enabled, environment: config.gocardless.environment, problems: config.gocardless.problems },
-        billing: config.billing,
+        stripe: { enabled: Boolean(stripe), mode: config.stripe.mode, webhookConfigured: config.stripe.webhookConfigured, problems: config.stripe.problems },
         emailConfigured: notify.configured,
         enquiries: await db.all('SELECT * FROM enquiries ORDER BY id DESC LIMIT 200'),
         tasters: await db.all('SELECT * FROM tasters ORDER BY id DESC LIMIT 200'),
@@ -311,10 +357,11 @@ function createApp({ config, db, gc, notify, log = console, now = () => new Date
           return send(res, 200, settings.publicScript(), { 'Content-Type': 'text/javascript; charset=utf-8', 'Cache-Control': 'public, max-age=0, must-revalidate', 'Vercel-CDN-Cache-Control': 'max-age=60, stale-while-revalidate=60' });
         }
         if (url.pathname === '/api/health') return send(res, 200, { ok: true, database: db ? db.kind : 'none (email-only)', email: notify.provider, gocardless: config.gocardless.enabled ? config.gocardless.environment : 'disabled', admin: db ? ((await adminAuth.anyActiveAdmin()) ? 'accounts' : config.adminToken ? 'setup-available' : 'not-configured') : false });
-        if (url.pathname === '/api/registrations/status' && req.method === 'GET') {
-          if (!billing) return send(res, 404, { error: 'Not found' });
-          const s = await billing.publicStatus(String(url.searchParams.get('ref') || '').slice(0, 64));
-          return s ? send(res, 200, s) : send(res, 404, { error: 'Not found' });
+        if (url.pathname === '/api/webhooks/stripe' && req.method === 'POST') return await postStripeWebhook(req, res);
+        if (['/api/registrations/start-dates', '/api/registrations/quote', '/api/registrations/status', '/api/registrations/checkout', '/api/registrations/resume'].includes(url.pathname)) {
+          const handled = await membershipRoutes(req, res, url);
+          if (handled !== null) return handled;
+          return send(res, 405, { error: 'Method not allowed' });
         }
         const routes = { '/api/enquiries': postEnquiry, '/api/tasters': postTaster, '/api/registrations': postRegistration };
         const fn = routes[url.pathname];

@@ -60,6 +60,11 @@ CREATE TABLE IF NOT EXISTS webhook_events (
   resource_type TEXT, action TEXT,
   received_at ${ts}
 );
+CREATE TABLE IF NOT EXISTS stripe_events (
+  stripe_event_id TEXT PRIMARY KEY,
+  type TEXT,
+  received_at ${ts}
+);
 CREATE TABLE IF NOT EXISTS settings (
   key TEXT PRIMARY KEY,
   value TEXT NOT NULL,
@@ -90,7 +95,12 @@ CREATE TABLE IF NOT EXISTS audit_log (
 // Columns added after the first release. Applied to existing databases on start-up.
 const ADDED_COLUMNS = {
   tasters: ['emergency_name TEXT', 'emergency_phone TEXT', 'medical_info TEXT', 'consent_participation INTEGER NOT NULL DEFAULT 0', 'consent_medical INTEGER NOT NULL DEFAULT 0', 'consent_photo TEXT', 'child_key TEXT', 'parent_phone_key TEXT', 'repeat_flag TEXT'],
-  registrations: ['emergency_name TEXT', 'emergency_phone TEXT', 'medical_info TEXT', 'consent_participation INTEGER NOT NULL DEFAULT 0', 'consent_medical INTEGER NOT NULL DEFAULT 0', 'consent_photo TEXT']
+  registrations: ['emergency_name TEXT', 'emergency_phone TEXT', 'medical_info TEXT', 'consent_participation INTEGER NOT NULL DEFAULT 0', 'consent_medical INTEGER NOT NULL DEFAULT 0', 'consent_photo TEXT',
+    // Membership billing (stage 3). Dates are YYYY-MM-DD; money is integer pence.
+    'child_dob TEXT', 'start_date TEXT', 'first_collection_date TEXT', 'first_collection_estimated INTEGER', 'earliest_charge_date TEXT',
+    'upfront_pence INTEGER', 'upfront_detail TEXT', 'covered_from TEXT', 'covered_to TEXT',
+    "upfront_status TEXT NOT NULL DEFAULT 'none'", 'upfront_error TEXT', 'upfront_paid_at TEXT', 'checkout_attempts INTEGER NOT NULL DEFAULT 0',
+    'stripe_checkout_session_id TEXT', 'stripe_payment_intent_id TEXT', 'stripe_customer_id TEXT', 'activated_at TEXT']
 };
 
 function withAudit(db) {

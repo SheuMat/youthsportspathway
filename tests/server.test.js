@@ -8,6 +8,7 @@ const { createApp } = require('../api/_lib/app');
 const gocardless = require('../api/_lib/gocardless');
 const dbMod = require('../api/_lib/db');
 const YSP = require('../js/site-data.js');
+const calc = require('../api/_lib/membership-billing');
 
 const SECRET = 'whsec_test_secret';
 const ADMIN = 'admin-token-for-tests-0123456789';
@@ -87,7 +88,16 @@ function webhook(base, events, secret = SECRET) {
 
 const parent = { parentName: 'Sam Parent', parentEmail: 'sam@example.com', parentPhone: '07700 900123', privacyAck: true,
   emergencyName: 'Jo Parent', emergencyPhone: '07700 900999', medicalInfo: 'Asthma - inhaler in bag', participationConsent: true, medicalConsent: true, photoConsent: 'no' };
-const reg = (o) => ({ ...parent, childName: 'Alex Parent', childAge: 8, termsAck: true, programmeId: 'grassroots', membershipId: 'grassroots-1', days: ['Monday'], ...o });
+// Tests run with "today" fixed at 2026-11-10; the start date defaults to the first bookable session.
+const reg = (o) => {
+  const r = { ...parent, childName: 'Alex Parent', childDob: '2018-03-01', termsAck: true, programmeId: 'grassroots', membershipId: 'grassroots-1', days: ['Monday'], ...o };
+  if (!r.startDate) {
+    const m = YSP.getMembership(r.membershipId);
+    const days = m && m.sessionsPerWeek === 2 ? YSP.programmeDays(m.programmeId) : r.days;
+    r.startDate = m ? calc.startDateOptions({ membershipId: m.id, days, today: '2026-11-10' })[0] : '2026-11-16';
+  }
+  return r;
+};
 
 describe('shared programme data', () => {
   test('four distinct membership products with correct prices', () => {
@@ -119,9 +129,6 @@ describe('config safety', () => {
   test('sandbox refuses a live token', () => {
     const c = load({ GOCARDLESS_ACCESS_TOKEN: 'live_x', GOCARDLESS_WEBHOOK_SECRET: 's' });
     assert.equal(c.gocardless.enabled, false);
-  });
-  test('subscriptions are not auto-created by default', () => {
-    assert.equal(load({}).billing.autoCreateSubscriptions, false);
   });
 });
 
@@ -200,7 +207,7 @@ describe('server', () => {
   });
 
   test('registration: Development now goes to secure Direct Debit like Grassroots', async () => {
-    const r = await postJson(s.base, '/api/registrations', reg({ programmeId: 'development', membershipId: 'development-2', days: ['Thursday', 'Friday'], childAge: 13, childName: 'Dev Kid' }));
+    const r = await postJson(s.base, '/api/registrations', reg({ programmeId: 'development', membershipId: 'development-2', days: ['Thursday', 'Friday'], childDob: '2013-05-01', childName: 'Dev Kid' }));
     assert.equal(r.status, 201);
     assert.equal(r.body.status, 'awaiting_direct_debit');
     assert.match(r.body.authorisationUrl, /^https:\/\/pay-sandbox\.gocardless\.com\//);
@@ -211,7 +218,7 @@ describe('server', () => {
     dev.paidRegistrationOpen = false;
     try {
       const before = s.mock.calls.length;
-      const r = await postJson(s.base, '/api/registrations', reg({ programmeId: 'development', membershipId: 'development-1', days: ['Thursday'], childAge: 12, childName: 'Held Kid' }));
+      const r = await postJson(s.base, '/api/registrations', reg({ programmeId: 'development', membershipId: 'development-1', days: ['Thursday'], childDob: '2014-05-01', childName: 'Held Kid' }));
       assert.equal(r.body.status, 'awaiting_operational_approval');
       assert.equal(r.body.authorisationUrl, undefined);
       assert.equal(s.mock.calls.length, before);
@@ -256,9 +263,10 @@ describe('server', () => {
     assert.equal(cur.subscription_status, 'none');
 
     const status = await (await fetch(s.base + '/api/registrations/status?ref=' + row.public_token)).json();
-    assert.match(status.message, /not a payment/);
+    assert.equal(status.stage, 'payment_due', 'a card payment is due for November before the first Direct Debit');
+    assert.equal(status.upfrontPence, 1800, '3 of 5 November Mondays');
 
-    // mandate active; auto-create is off so no subscription
+    // mandate active; the card payment is still due, so no subscription yet
     w = await webhook(s.base, [{ id: 'EV2', resource_type: 'mandates', action: 'active', links: { mandate: 'MD1' } }]);
     cur = (await s.db.get('SELECT * FROM registrations WHERE id = ?', row.id));
     assert.equal(cur.mandate_status, 'active');
@@ -312,29 +320,10 @@ describe('server', () => {
   });
 });
 
-describe('auto-create subscriptions (when owner enables it)', () => {
-  let s;
-  before(async () => { s = await startServer({ BILLING_AUTO_CREATE_SUBSCRIPTIONS: 'true', BILLING_DAY_OF_MONTH: '1' }); });
-  after(async () => { s.server.close(); await s.db.close(); });
-
-  test('creates exactly one subscription even if mandate events repeat', async () => {
-    const r = await postJson(s.base, '/api/registrations', reg({ membershipId: 'grassroots-2', days: ['Monday', 'Friday'] }));
-    const row = (await s.db.get('SELECT * FROM registrations WHERE reference = ?', r.body.reference));
-    s.mock.state.mandates.MD1 = 'active';
-    await webhook(s.base, [{ id: 'A1', resource_type: 'billing_requests', action: 'fulfilled', links: { billing_request: row.gc_billing_request_id, mandate_request_mandate: 'MD1', customer: 'CU1' } }]);
-    await webhook(s.base, [{ id: 'A2', resource_type: 'mandates', action: 'active', links: { mandate: 'MD1' } }]);
-    await webhook(s.base, [{ id: 'A3', resource_type: 'mandates', action: 'reinstated', links: { mandate: 'MD1' } }]);
-    const subs = s.mock.calls.filter((c) => c.path === '/subscriptions');
-    assert.equal(subs.length, 1);
-    assert.equal(subs[0].body.subscriptions.amount, 5000);
-    assert.equal(subs[0].body.subscriptions.day_of_month, 1);
-  });
-});
-
 describe('no GoCardless configured', () => {
   test('registration is saved and parent told no payment was taken', async () => {
     const config = load({});
-    const app = createApp({ config, db: await freshDb(), gc: null, log: quiet });
+    const app = createApp({ config, db: await freshDb(), gc: null, log: quiet, now: () => new Date('2026-11-10T10:00:00Z') });
     const server = http.createServer(app.handler);
     await new Promise((r) => server.listen(0, '127.0.0.1', r));
     const base = `http://127.0.0.1:${server.address().port}`;

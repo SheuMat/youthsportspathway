@@ -90,7 +90,16 @@ function taster(b, today = new Date().toISOString().slice(0, 10)) {
   return { c, v: { programmeId: programme && programme.id, day, preferredDate: date, ...pc } };
 }
 
-function registration(b) {
+function ageOn(dob, onDate) {
+  const [y1, m1, d1] = dob.split('-').map(Number);
+  const [y2, m2, d2] = onDate.split('-').map(Number);
+  return y2 - y1 - (m2 < m1 || (m2 === m1 && d2 < d1) ? 1 : 0);
+}
+const validIsoDate = (s) => /^\d{4}-\d{2}-\d{2}$/.test(s) && !Number.isNaN(Date.parse(s + 'T00:00:00Z')) && new Date(s + 'T00:00:00Z').toISOString().slice(0, 10) === s;
+
+/** today: 'YYYY-MM-DD' (injectable for tests) */
+function registration(b, today = new Date().toISOString().slice(0, 10)) {
+  const billingCalc = require('./membership-billing');
   const c = new Checker();
   const m = YSP.getMembership(str(b.membershipId, 30));
   const programme = m && YSP.getProgramme(m.programmeId);
@@ -99,14 +108,34 @@ function registration(b) {
   const days = Array.isArray(b.days) ? b.days.map((d) => str(d, 12)).slice(0, 7) : [];
   if (m) { const err = YSP.validateMembershipDays(m.id, days); if (err) c.fail('days', err); }
   if (b.termsAck !== true) c.fail('termsAck', 'Please confirm you have read the membership terms.');
-  const pc = parentChild(b, c, programme);
+
+  // Memberships use date of birth (age checked as at the start date) instead of a typed age.
+  const childDob = str(b.childDob, 10);
+  const startDate = str(b.startDate, 10);
+  const memberDays = m ? (m.sessionsPerWeek === 2 ? YSP.programmeDays(m.programmeId) : days) : [];
+  if (m && !c.fields.days) {
+    const options = billingCalc.startDateOptions({ membershipId: m.id, days: memberDays, today, closures: YSP.closures }, { ...billingCalc.DEFAULT_RULES, ...YSP.billingRules });
+    if (!options.includes(startDate)) c.fail('startDate', 'Please choose a start date from the list of upcoming sessions.');
+  }
+  let childAge = NaN;
+  if (!validIsoDate(childDob) || childDob >= today) c.fail('childDob', "Please enter your child's date of birth.");
+  else {
+    childAge = ageOn(childDob, validIsoDate(startDate) ? startDate : today);
+    if (programme && (childAge < programme.minAge || childAge > programme.maxAge)) {
+      c.fail('childDob', `${programme.name} is for ages ${programme.ages}. Your child will be ${childAge} on the start date.`);
+    }
+  }
+  // Shared parent/child checks; the age comes from the date of birth, so the range check above replaces theirs.
+  const real = parentChild({ ...b, childAge: Number.isInteger(childAge) ? childAge : 0 }, c, null);
   return {
     c,
     v: {
       membership: m, programme,
-      days: m ? (m.sessionsPerWeek === 2 ? YSP.programmeDays(m.programmeId) : days) : [],
+      days: memberDays,
+      startDate, childDob,
       existingDirectDebit: b.existingDirectDebit === true,
-      ...pc
+      ...real,
+      childAge: Number.isInteger(childAge) ? childAge : null
     }
   };
 }

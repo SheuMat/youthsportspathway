@@ -169,8 +169,16 @@
           <legend>3. Session Day</legend>
           <div class="choice-grid" data-ysp="day-choices"></div>
         </fieldset>
+        <fieldset class="form-fieldset" data-ysp="start-fieldset" hidden>
+          <legend>4. Start Date</legend>
+          <div class="form-group">
+            <label for="reg-start-date">First session *</label>
+            <select id="reg-start-date" name="startDate" required data-ysp="start-date"></select>
+            <p style="font-size:0.8rem;opacity:0.75;margin-top:6px;">Choose your child's first session. Any sessions before your first Direct Debit are paid by card when you register.</p>
+          </div>
+        </fieldset>
         <fieldset class="form-fieldset">
-          <legend>4. Parent / Guardian</legend>
+          <legend>5. Parent / Guardian</legend>
           <div class="form-group"><label for="reg-parent-name">Full Name *</label><input type="text" id="reg-parent-name" name="parentName" required maxlength="120" autocomplete="name" /></div>
           <div class="form-row">
             <div class="form-group"><label for="reg-parent-email">Email *</label><input type="email" id="reg-parent-email" name="parentEmail" required maxlength="200" autocomplete="email" /></div>
@@ -178,14 +186,14 @@
           </div>
         </fieldset>
         <fieldset class="form-fieldset">
-          <legend>5. Child</legend>
+          <legend>6. Child</legend>
           <div class="form-row">
             <div class="form-group"><label for="reg-child-name">Child's Full Name *</label><input type="text" id="reg-child-name" name="childName" required maxlength="120" /></div>
-            <div class="form-group"><label for="reg-child-age">Child's Age *</label><input type="number" id="reg-child-age" name="childAge" required min="5" max="15" step="1" inputmode="numeric" /></div>
+            <div class="form-group"><label for="reg-child-dob">Child's Date of Birth *</label><input type="date" id="reg-child-dob" name="childDob" required autocomplete="off" /></div>
           </div>
         </fieldset>
         <fieldset class="form-fieldset">
-          <legend>6. Emergency Contact &amp; Medical</legend>
+          <legend>7. Emergency Contact &amp; Medical</legend>
           <div class="form-row">
             <div class="form-group"><label for="reg-emergency-name">Emergency Contact Name *</label><input type="text" id="reg-emergency-name" name="emergencyName" required maxlength="120" /></div>
             <div class="form-group"><label for="reg-emergency-phone">Emergency Contact Telephone *</label><input type="tel" id="reg-emergency-phone" name="emergencyPhone" required maxlength="30" pattern="[0-9+() \-]{10,20}" /></div>
@@ -196,7 +204,7 @@
           </div>
         </fieldset>
         <fieldset class="form-fieldset">
-          <legend>7. Consent</legend>
+          <legend>8. Consent</legend>
           <div class="form-group"><label class="form-check"><input type="checkbox" name="participationConsent" required /> I am the child's parent or legal guardian and I give permission for them to take part in YSP basketball sessions. *</label></div>
           <div class="form-group"><label class="form-check"><input type="checkbox" name="medicalConsent" required /> In an emergency, I give permission for YSP coaches to give first aid and to seek medical treatment for my child if I cannot be contacted. I have told YSP about any medical conditions above. *</label></div>
           <div class="form-group">
@@ -211,14 +219,16 @@
         </div>
         <div class="summary-box" data-ysp="reg-summary" aria-live="polite">
           <h4>Your Membership</h4>
-          <p>Choose a programme and membership to see your monthly price.</p>
+          <p>Choose a programme, membership and start date to see your payments.</p>
         </div>
         <div class="summary-box">
           <h4>Membership Terms</h4>
           <ul>
             <li>Membership is for the selected programme and session day(s) only. Grassroots and Development are separate memberships.</li>
-            <li>Payments are collected monthly by Direct Debit through GoCardless and are protected by the Direct Debit Guarantee.</li>
-            <li>Setting up a Direct Debit is not the same as a payment being taken. We'll confirm your start date, collection date and cancellation terms by email before your first payment.</li>
+            <li>The monthly fee is collected by Direct Debit through GoCardless on the 1st of each month and covers that month. It is the same every month, including months with fewer sessions. Payments are protected by the Direct Debit Guarantee.</li>
+            <li>Sessions between your start date and your first Direct Debit are paid by card when you register, worked out from the sessions remaining that month (a full month if the next 1st is too soon to collect).</li>
+            <li>You can cancel at any time by emailing info@youthsportspathway.co.uk. Cancel at least 14 days before the 1st to stop that month's payment; otherwise that month is collected and membership ends at the end of it.</li>
+            <li>If you cancel within 14 days of registering, we refund your card payment less any sessions already attended. After that, card payments are non-refundable. There are no refunds or credits for missed sessions; if YSP cancels a session we'll offer a make-up session or credit.</li>
           </ul>
         </div>
         <p style="font-size:0.8rem;opacity:0.75;margin-bottom:16px;">We use these details only to manage your booking and contact you about your child's sessions. Information is stored securely and is not shared except with service providers needed to run our programmes. See our <a href="policies.html#privacy" style="color:var(--red);">privacy information</a>.</p>
@@ -229,7 +239,7 @@
         <input type="text" name="website" class="hp-field" tabindex="-1" autocomplete="off" aria-hidden="true" />
         <p class="form-status" role="status" aria-live="polite"></p>
         <button type="submit" class="btn btn-primary form-submit">Continue</button>
-        <p style="font-size:0.8rem;margin-top:12px;opacity:0.75;">Where online payment is open you'll be taken to GoCardless's secure page to authorise your Direct Debit. YSP never sees your bank details.</p>
+        <p style="font-size:0.8rem;margin-top:12px;opacity:0.75;">Next you'll set up your Direct Debit on GoCardless's secure page, then pay any first amount by card on Stripe's secure page. YSP never sees your bank or card details.</p>
       </form>
       <p class="book-switch">Not sure yet? <a href="#taster" data-mode="taster">Book a free taster first</a></p>
     </div>
