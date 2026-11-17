@@ -8,6 +8,8 @@ const billingMod = require('./billing');
 const notifyMod = require('./notify');
 const dbMod = require('./db');
 const emails = require('./emails');
+const settingsMod = require('./settings');
+const adminAuthMod = require('./admin-auth');
 
 const TYPES = {
   '.html': 'text/html; charset=utf-8', '.css': 'text/css; charset=utf-8', '.js': 'text/javascript; charset=utf-8',
@@ -32,6 +34,8 @@ function createApp({ config, db, gc, notify, log = console, now = () => new Date
   if (gc === undefined) gc = config.gocardless.enabled && db ? gocardless.client(config.gocardless) : null;
   const billing = db ? billingMod.create({ db, config, gc, notify, log }) : null;
   const emailOnly = !db;
+  const settings = settingsMod.create(db, { now: () => now().getTime() });
+  const adminAuth = db ? adminAuthMod.create({ db, config, now }) : null;
   const UNAVAILABLE = 'We couldn\'t send your form just now. Please try again, or email ' + validate.YSP.contact.email + '.';
   const hits = new Map();
 
@@ -62,7 +66,7 @@ function createApp({ config, db, gc, notify, log = console, now = () => new Date
   }
   function rateLimited(req, bucket, max = 10, windowMs = 10 * 60 * 1000) {
     const ip = req.socket.remoteAddress || 'unknown';
-    const key = `${bucket}:${ip}`; const t = Date.now();
+    const key = `${bucket}:${ip}`; const t = now().getTime();
     const list = (hits.get(key) || []).filter((x) => t - x < windowMs);
     list.push(t); hits.set(key, list);
     if (hits.size > 5000) hits.clear();
@@ -73,7 +77,8 @@ function createApp({ config, db, gc, notify, log = console, now = () => new Date
     if (!origin) return true;
     try { return new URL(origin).host === req.headers.host || origin === config.publicBaseUrl; } catch { return false; }
   }
-  function isAdmin(req) {
+  // Legacy shared token: accepted only until the first admin account (with two-step verification) exists.
+  function tokenAdmin(req) {
     if (!config.adminToken) return false;
     const m = /^Bearer (.+)$/.exec(req.headers.authorization || '');
     if (!m) return false;
@@ -187,11 +192,48 @@ function createApp({ config, db, gc, notify, log = console, now = () => new Date
   }
 
   // ── Admin API ──
+  async function adminAuthRoutes(req, res, p) {
+    const ip = req.socket.remoteAddress || 'unknown';
+    if (req.method === 'GET' && p === '/api/admin/auth/state') {
+      const user = await adminAuth.authenticate(req);
+      return send(res, 200, { ...(await adminAuth.state()), signedIn: Boolean(user), user });
+    }
+    if (req.method !== 'POST') return send(res, 405, { error: 'Method not allowed' });
+    if (!sameOrigin(req)) return send(res, 403, { error: 'Forbidden' });
+    if (p === '/api/admin/auth/logout') {
+      const out = await adminAuth.logout(req);
+      return send(res, 200, { ok: true }, { 'Set-Cookie': out.setCookie });
+    }
+    if (rateLimited(req, 'admin-auth', 10)) return send(res, 429, { error: 'Too many attempts. Please wait 10 minutes.' });
+    const b = await readJson(req);
+    const out = p === '/api/admin/auth/setup' ? await adminAuth.beginSetup(b)
+      : p === '/api/admin/auth/setup/verify' ? await adminAuth.finishSetup(b)
+        : p === '/api/admin/auth/login' ? await adminAuth.login(b, ip)
+          : { status: 404, error: 'Not found' };
+    if (out.error) return send(res, out.status, { error: out.error });
+    if (out.uri) out.qrSvg = await require('qrcode').toString(out.uri, { type: 'svg', margin: 1, width: 200 });
+    const { status, setCookie, ...body } = out;
+    return send(res, status, { ok: true, ...body }, setCookie ? { 'Set-Cookie': setCookie } : {});
+  }
+
   async function admin(req, res, url) {
     if (!db) return send(res, 503, { error: 'Admin needs a database (set DATABASE_URL)' });
-    if (!config.adminToken) return send(res, 503, { error: 'Admin is not configured (set ADMIN_TOKEN)' });
-    if (!isAdmin(req)) return send(res, 401, { error: 'Unauthorised' });
     const p = url.pathname;
+    if (p.startsWith('/api/admin/auth/')) return adminAuthRoutes(req, res, p);
+    let user = await adminAuth.authenticate(req);
+    if (!user && tokenAdmin(req) && !(await adminAuth.anyActiveAdmin())) user = { id: null, email: 'admin-token' };
+    if (!user) return send(res, 401, { error: 'Unauthorised' });
+    if (req.method !== 'GET' && !sameOrigin(req)) return send(res, 403, { error: 'Forbidden' });
+    if (p === '/api/admin/settings') {
+      if (req.method === 'GET') return send(res, 200, { settings: validate.YSP.exportSettings(), defaults: validate.YSP.defaults });
+      if (req.method === 'PUT') {
+        const out = await settings.save((await readJson(req)).settings, user.email);
+        if (out.errors) return send(res, 422, { error: out.errors[0], errors: out.errors });
+        await db.audit('settings', null, 'updated', user.email);
+        return send(res, 200, { ok: true, settings: validate.YSP.exportSettings() });
+      }
+      return send(res, 405, { error: 'Method not allowed' });
+    }
     if (req.method === 'GET' && p === '/api/admin/overview') {
       return send(res, 200, {
         database: db.kind,
@@ -264,7 +306,11 @@ function createApp({ config, db, gc, notify, log = console, now = () => new Date
       if (url.pathname.startsWith('/api/')) {
         if (url.pathname === '/api/webhooks/gocardless' && req.method === 'POST') return await postWebhook(req, res);
         if (url.pathname.startsWith('/api/admin/')) return await admin(req, res, url);
-        if (url.pathname === '/api/health') return send(res, 200, { ok: true, database: db ? db.kind : 'none (email-only)', email: notify.provider, gocardless: config.gocardless.enabled ? config.gocardless.environment : 'disabled', admin: Boolean(config.adminToken) });
+        if (db) await settings.load().catch((err) => log.warn('[settings] using defaults:', err.message));
+        if (url.pathname === '/api/settings.js') {
+          return send(res, 200, settings.publicScript(), { 'Content-Type': 'text/javascript; charset=utf-8', 'Cache-Control': 'public, max-age=0, must-revalidate', 'Vercel-CDN-Cache-Control': 'max-age=60, stale-while-revalidate=60' });
+        }
+        if (url.pathname === '/api/health') return send(res, 200, { ok: true, database: db ? db.kind : 'none (email-only)', email: notify.provider, gocardless: config.gocardless.enabled ? config.gocardless.environment : 'disabled', admin: db ? ((await adminAuth.anyActiveAdmin()) ? 'accounts' : config.adminToken ? 'setup-available' : 'not-configured') : false });
         if (url.pathname === '/api/registrations/status' && req.method === 'GET') {
           if (!billing) return send(res, 404, { error: 'Not found' });
           const s = await billing.publicStatus(String(url.searchParams.get('ref') || '').slice(0, 64));

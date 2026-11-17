@@ -19,7 +19,7 @@ for (const p of pages) {
   if (p !== 'admin.html' && !/<meta name="description"/.test(html)) fail(p, 'missing meta description');
   for (const m of html.matchAll(/(?:href|src)="([^"#?]+)(?:[?#][^"]*)?"/g)) {
     const u = m[1];
-    if (/^(https?:|mailto:|tel:|data:)/.test(u)) continue;
+    if (/^(https?:|mailto:|tel:|data:)/.test(u) || u.startsWith('/api/')) continue; // API routes are served by the backend
     if (!fs.existsSync(path.join(root, decodeURIComponent(u)))) fail(p, `broken link ${u}`);
   }
   for (const m of html.matchAll(/<img\b[^>]*>/g)) if (!/\balt="/.test(m[0])) fail(p, `img without alt: ${m[0].slice(0, 60)}`);

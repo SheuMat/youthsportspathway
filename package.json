@@ -17,6 +17,7 @@
     "nodemailer": "^6.9.16"
   },
   "dependencies": {
-    "pg": "^8.13.1"
+    "pg": "^8.13.1",
+    "qrcode": "^1.5.4"
   }
 }

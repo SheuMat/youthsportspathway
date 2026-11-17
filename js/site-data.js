@@ -23,8 +23,8 @@
       maxAge: 10,
       description: 'Our grassroots basketball sessions introduce young players to the game while developing their basketball skills, confidence and understanding in a positive, supportive environment. Sessions are suitable for beginners and developing players aged 5–10.',
       sessions: [
-        { day: 'Monday', start: '17:00', end: '18:00', time: '5:00pm – 6:00pm' },
-        { day: 'Friday', start: '17:00', end: '18:00', time: '5:00pm – 6:00pm' }
+        { day: 'Monday', start: '17:00', end: '18:00', time: '5:00pm – 6:00pm', capacity: 25 },
+        { day: 'Friday', start: '17:00', end: '18:00', time: '5:00pm – 6:00pm', capacity: 25 }
       ],
       tasterAvailable: true,
       // true = parents can set up Direct Debit online straight away.
@@ -39,8 +39,9 @@
       description: 'Our Development Basketball sessions are designed for young people aged 11–15 who want to improve their basketball skills, understanding and confidence. Sessions focus on individual development, decision-making, game situations and applying skills in competitive play.',
       note: 'Players with different levels of experience are welcome — you do not need to play for a club.',
       sessions: [
-        { day: 'Thursday', start: '18:00', end: '19:00', time: '6:00pm – 7:00pm' },
-        { day: 'Friday', start: '18:00', end: '19:00', time: '6:00pm – 7:00pm' }
+        // Capacity not yet confirmed by YSP (null = no limit enforced).
+        { day: 'Thursday', start: '18:00', end: '19:00', time: '6:00pm – 7:00pm', capacity: null },
+        { day: 'Friday', start: '18:00', end: '19:00', time: '6:00pm – 7:00pm', capacity: null }
       ],
       tasterAvailable: true,
       // Sessions confirmed by YSP (venue, coaching and capacity arrangements agreed).
@@ -61,6 +62,18 @@
   // testimonial shape: { quote: '', author: '', role: 'Parent' }
   var partners = [];
   var testimonials = [];
+
+  // Dates with no sessions: { from: 'YYYY-MM-DD', to: 'YYYY-MM-DD', programmeId?: 'grassroots', day?: 'Monday', reason?: '' }.
+  // Managed from the admin page; these are only the defaults.
+  var closures = [];
+
+  // Membership billing rules (see api/_lib/membership-billing.js). Managed from the admin page.
+  var billingRules = {
+    collectionDay: 1,
+    estimateLeadWorkingDays: 7,
+    minimumCardChargePence: 30,
+    startWindowDays: 28
+  };
 
   var contact = {
     email: 'info@youthsportspathway.co.uk',
@@ -111,10 +124,65 @@
     return rows;
   }
 
+  // ── Admin-managed settings ──
+  // Settings saved in the admin page overlay these built-in defaults, in place, so every page and
+  // server module that already holds a reference to YSP sees the same values.
+  var DEFAULTS = JSON.parse(JSON.stringify({ programmes: programmes, memberships: memberships, closures: closures, billingRules: billingRules }));
+
+  function timeLabel(start, end) {
+    function one(t) {
+      var h = Number(t.slice(0, 2)), m = t.slice(3);
+      return (h % 12 || 12) + ':' + m + (h < 12 ? 'am' : 'pm');
+    }
+    return one(start) + ' – ' + one(end);
+  }
+  function replaceArray(target, items) { target.length = 0; items.forEach(function (x) { target.push(x); }); }
+
+  /** Reset to defaults, then apply saved settings ({ programmes, memberships, closures, billingRules }). */
+  function applySettings(saved) {
+    var base = JSON.parse(JSON.stringify(DEFAULTS));
+    saved = saved || {};
+    replaceArray(programmes, base.programmes.map(function (p) {
+      var o = (saved.programmes || []).filter(function (x) { return x.id === p.id; })[0];
+      if (!o) return p;
+      ['name', 'ages', 'minAge', 'maxAge', 'description', 'note', 'tasterAvailable', 'paidRegistrationOpen'].forEach(function (k) {
+        if (o[k] !== undefined) p[k] = o[k];
+      });
+      if (Array.isArray(o.sessions) && o.sessions.length === p.sessions.length) {
+        p.sessions = o.sessions.map(function (s) {
+          return { day: s.day, start: s.start, end: s.end, time: timeLabel(s.start, s.end), capacity: s.capacity == null ? null : s.capacity };
+        });
+      }
+      return p;
+    }));
+    replaceArray(memberships, base.memberships.map(function (m) {
+      var o = (saved.memberships || []).filter(function (x) { return x.id === m.id; })[0];
+      if (o && o.amountPence !== undefined) m.amountPence = o.amountPence;
+      if (o && o.name) m.name = o.name;
+      var days = programmeDays(m.programmeId);
+      m.daysLabel = days.join(m.sessionsPerWeek >= days.length ? ' AND ' : ' OR ');
+      return m;
+    }));
+    replaceArray(closures, Array.isArray(saved.closures) ? saved.closures : base.closures);
+    Object.keys(billingRules).forEach(function (k) { delete billingRules[k]; });
+    Object.assign(billingRules, base.billingRules, saved.billingRules || {}, { collectionDay: 1 });
+    return YSP;
+  }
+  /** Current settings in the shape applySettings accepts. */
+  function exportSettings() {
+    return JSON.parse(JSON.stringify({ programmes: programmes, memberships: memberships, closures: closures, billingRules: billingRules }));
+  }
+
   var YSP = {
     venue: VENUE,
     programmes: programmes,
     memberships: memberships,
+    closures: closures,
+    billingRules: billingRules,
+    defaults: DEFAULTS,
+    applySettings: applySettings,
+    exportSettings: exportSettings,
+    timeLabel: timeLabel,
     partners: partners,
     testimonials: testimonials,
     contact: contact,

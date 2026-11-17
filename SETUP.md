@@ -45,13 +45,41 @@ Locally, the same code uses SQLite (`DATABASE_PATH`) unless `DATABASE_URL` is se
 
 ## Admin page
 
-Go to `/admin.html` and enter `ADMIN_TOKEN`. From there you can:
+Go to `/admin.html`.
+
+**First time:** the page asks you to set up an account. Enter the `ADMIN_TOKEN` value from Vercel, your name, email and a password of at least 12 characters, then scan the QR code with an authenticator app and enter its 6-digit code. Once an account exists, the set-up page closes and `ADMIN_TOKEN` no longer opens the admin area.
+
+**Signing in:** email, password and the current authenticator code. Sessions last 12 hours, in a secure HttpOnly cookie. Five wrong attempts lock the account for 15 minutes. Sign-ins, failures and settings changes are recorded in `audit_log`.
+
+**Programmes & prices tab:** programme names, ages, descriptions, session days and times, capacities (blank = no limit), whether tasters and online paid registration are open, membership prices, closures and billing rules. Changes are saved in the database (`settings` table) and appear on the website within a couple of minutes. The built-in values in `js/site-data.js` are the defaults and are used if the database is unavailable. New prices apply to new registrations.
+
+**Submissions tab:**
 
 - **Taster requests:** confirm (emails the parent), decline, or mark attended.
 - **Registrations:** view the registration, mandate, subscription and last-payment status separately. You can create a subscription (one per registration; a repeat click never makes a second one), cancel a subscription, or reject a registration.
 - **Payments and enquiries:** view them.
 
 If email isn't configured, nothing is emailed. Check this page for new submissions.
+
+## Membership billing rules (agreed with the owner)
+
+The calculator is `api/_lib/membership-billing.js` (tests: `tests/membership-billing.test.js`).
+
+- Monthly Direct Debits are collected on the **1st** and cover that calendar month. The amount is always the full monthly price, even in months with closures.
+- The first Direct Debit is the first 1st on or after both the start date and the earliest date GoCardless can collect. Before the mandate exists this is estimated (registration date + the lead time in working days, skipping weekends and bank holidays). After the mandate exists, GoCardless's real `next_possible_charge_date` is used.
+- Every month before the first Direct Debit is paid upfront by card: the start month as price × sessions remaining ÷ sessions in the month (closures removed, both days counted for two-session plans); any later month in full. Amounts are in whole pence, rounded down. Totals below the minimum card charge (default 30p) are waived.
+- Start dates must be one of the child's session dates within the start window (default 28 days).
+- Order: the parent sets up the Direct Debit first, then pays any upfront amount by card, using the recalculated amount.
+- Failed payments: first failure → the Direct Debit is retried once automatically; second failure → the parent is emailed a reminder with a card payment link and the membership is flagged for review. No automatic cancellation.
+
+### Cancellation policy (agreed draft)
+
+- Cancel any time by emailing info@youthsportspathway.co.uk.
+- Cancel at least 14 days before the 1st to stop that month's Direct Debit; otherwise that month is collected and the membership ends at the end of it.
+- 14-day cooling-off for online sign-ups: if the child has already started, the upfront payment is refunded minus sessions attended. After 14 days, upfront payments are non-refundable.
+- No refunds or credits for sessions a child misses. Sessions YSP cancels get a make-up session or credit.
+- A Direct Debit cancelled at the bank without telling YSP counts as a cancellation; any amount owed is requested by payment link.
+- No pausing for now.
 
 ## GoCardless
 

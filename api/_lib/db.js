@@ -60,6 +60,26 @@ CREATE TABLE IF NOT EXISTS webhook_events (
   resource_type TEXT, action TEXT,
   received_at ${ts}
 );
+CREATE TABLE IF NOT EXISTS settings (
+  key TEXT PRIMARY KEY,
+  value TEXT NOT NULL,
+  updated_by TEXT,
+  updated_at ${ts}
+);
+CREATE TABLE IF NOT EXISTS admin_users (
+  id ${idType},
+  email TEXT UNIQUE NOT NULL, name TEXT,
+  password_hash TEXT NOT NULL, totp_secret TEXT NOT NULL,
+  totp_enabled INTEGER NOT NULL DEFAULT 0, active INTEGER NOT NULL DEFAULT 1,
+  failed_attempts INTEGER NOT NULL DEFAULT 0, locked_until TEXT, last_totp_step INTEGER, last_login_at TEXT,
+  created_at ${ts}
+);
+CREATE TABLE IF NOT EXISTS admin_sessions (
+  token_hash TEXT PRIMARY KEY,
+  user_id INTEGER NOT NULL REFERENCES admin_users(id) ON DELETE CASCADE,
+  expires_at TEXT NOT NULL,
+  created_at ${ts}
+);
 CREATE TABLE IF NOT EXISTS audit_log (
   id ${idType},
   entity TEXT NOT NULL, entity_id INTEGER, event TEXT NOT NULL, detail TEXT,
